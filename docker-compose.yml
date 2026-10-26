@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-adaptive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-adaptive}
+      POSTGRES_DB: ${POSTGRES_DB:-adaptive_sport}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-adaptive} -d $${POSTGRES_DB:-adaptive_sport}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-adaptive}:${POSTGRES_PASSWORD:-adaptive}@db:5432/${POSTGRES_DB:-adaptive_sport}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
