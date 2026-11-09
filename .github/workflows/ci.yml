@@ -1,0 +1,261 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Weekly, so that advisories published after the last push still fail the audit job
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      # NumPy and LightGBM are installed too, so that mypy sees the types of the ranking code
+      - run: pip install -r requirements-dev.txt -r requirements-ml.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy app
+      - run: lint-imports
+
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      # The ML requirements are installed so that the ranking and experiment tests run instead
+      # of being skipped; a guard test fails when LightGBM is missing while CI is set.
+      - run: pip install -r requirements-dev.txt -r requirements-ml.txt
+      - run: pytest -q
+      - name: Experiment smoke runs write valid JSON
+        run: |
+          python -m app.experiment h1 --config smoke --out "$RUNNER_TEMP/h1.json"
+          python -m app.experiment h2 --config smoke --out "$RUNNER_TEMP/h2.json"
+          python -m json.tool "$RUNNER_TEMP/h1.json" > /dev/null
+          python -m json.tool "$RUNNER_TEMP/h2.json" > /dev/null
+      - name: The ranker trains and exports an artifact
+        run: |
+          python -m app.experiment train --config smoke --out "$RUNNER_TEMP/model"
+          test -s "$RUNNER_TEMP/model/model.txt"
+          python -m json.tool "$RUNNER_TEMP/model/manifest.json" > /dev/null
+
+  postgis:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      db:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: adaptive_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d adaptive_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      # Throw-away credentials of the service container above
+      ENV: test
+      JWT_SECRET: ci-only-signing-key-0123456789abcdef
+      DB_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/adaptive_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/adaptive_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Migrate to head
+        run: alembic upgrade head
+      - name: Models and migrations agree
+        run: alembic check
+      - name: PostGIS tests
+        run: pytest -q -m postgis
+
+  audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install pip-audit==2.10.1
+      - run: pip-audit -r requirements.txt
+      - run: pip-audit -r requirements-dev.txt
+      - run: pip-audit -r requirements-ranker.txt
+      - run: pip-audit -r requirements-ml.txt
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the backend image
+        run: docker build --tag adaptive-sport-backend:ci backend
+      # The repository root is the build context: the image needs docs/api/openapi.json
+      - name: Build the frontend image
+        run: docker build --file frontend/Dockerfile --tag adaptive-sport-frontend:ci .
+      - name: Build the proxy and the certificate generator
+        run: |
+          docker build --target proxy --tag adaptive-sport-proxy:ci docker/proxy
+          docker build --target certs --tag adaptive-sport-certs:ci docker/proxy
+      - name: Compose file is valid
+        env:
+          # Placeholders: compose refuses to render without the mandatory secrets
+          POSTGRES_PASSWORD: ci
+          DB_OWNER_PASSWORD: ci
+          DB_API_PASSWORD: ci
+          JWT_SECRET: ci-only-signing-key-0123456789abcdef
+          SEED_PASSWORD: ci-only-demo-password
+        run: docker compose --profile demo config --quiet
+
+  stack:
+    runs-on: ubuntu-latest
+    env:
+      # Shared by compose and the smoke script, which looks the containers up by project
+      COMPOSE_PROJECT_NAME: adaptive-ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate throw-away secrets
+        run: |
+          for name in POSTGRES_PASSWORD DB_OWNER_PASSWORD DB_API_PASSWORD SEED_PASSWORD; do
+            value="$(openssl rand -hex 16)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+          value="$(openssl rand -hex 32)"
+          echo "::add-mask::$value"
+          echo "JWT_SECRET=$value" >> "$GITHUB_ENV"
+      - name: Start the stack with the demo data
+        run: docker compose --profile demo up --build --detach --wait
+      # Also checks that the feed is ordered by the learned ranker (the demo accounts exist)
+      - name: Smoke test through the proxy
+        run: docker/smoke.sh
+      # Empties the model volume, expects the baseline order, trains again and expects the
+      # learned order; the login rate limit left by the smoke test refills while it retries
+      - name: Ranker fallback
+        run: docker/smoke.sh --fallback
+      - name: Show the logs when something failed
+        if: failure()
+        run: docker compose --profile demo logs --no-color --tail 80
+      - name: Tear down
+        if: always()
+        run: docker compose --profile demo down --volumes
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Satisfies the "engines" range in frontend/package.json
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      # The generated API types exist only once the backend has exported the contract
+      - name: Generate API types
+        if: ${{ hashFiles('docs/api/openapi.json') != '' }}
+        run: npm run gen:api
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --omit=dev
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: adaptive-e2e
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate throw-away secrets
+        run: |
+          for name in POSTGRES_PASSWORD DB_OWNER_PASSWORD DB_API_PASSWORD SEED_PASSWORD; do
+            value="$(openssl rand -hex 16)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+          value="$(openssl rand -hex 32)"
+          echo "::add-mask::$value"
+          echo "JWT_SECRET=$value" >> "$GITHUB_ENV"
+          value="Aa1-$(openssl rand -hex 12)"
+          echo "::add-mask::$value"
+          echo "E2E_PASSWORD=$value" >> "$GITHUB_ENV"
+      - name: Start the stack with the demo data
+        run: docker compose --profile demo up --build --detach --wait
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install the dependencies and the generated API types
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run gen:api
+      # Chromium and its system libraries stay on the runner; nothing of this goes into an image
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end and accessibility tests
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: https://localhost:8443
+          E2E_DEMO_PASSWORD: ${{ env.SEED_PASSWORD }}
+        run: npm run e2e
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
+      - name: Show the logs when something failed
+        if: failure()
+        run: docker compose --profile demo logs --no-color --tail 80
+      - name: Tear down
+        if: always()
+        run: docker compose --profile demo down --volumes
