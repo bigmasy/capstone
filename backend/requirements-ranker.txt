@@ -1,0 +1,4 @@
+lightgbm==4.6.0
+numpy==2.3.5
+# Required by LightGBM; pinned so the image does not depend on what is newest at build time
+scipy==1.18.1
