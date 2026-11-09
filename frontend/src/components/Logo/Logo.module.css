@@ -1,0 +1,46 @@
+.logo {
+  flex: none;
+}
+
+.tile {
+  fill: var(--color-primary);
+}
+
+.legLeft,
+.legRight {
+  fill: none;
+  stroke-width: 6.4;
+}
+
+.legLeft {
+  stroke: var(--color-on-primary);
+}
+
+.legRight {
+  stroke: var(--color-mark-accent);
+}
+
+.footLeft {
+  fill: var(--color-on-primary);
+}
+
+.footRight {
+  fill: var(--color-mark-accent);
+}
+
+@media (forced-colors: active) {
+  .tile {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+
+  .legLeft,
+  .legRight {
+    stroke: CanvasText;
+  }
+
+  .footLeft,
+  .footRight {
+    fill: CanvasText;
+  }
+}

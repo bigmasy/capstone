@@ -1,0 +1,55 @@
+.panel {
+  max-width: 36rem;
+  padding: var(--space-3);
+  border: 0.25rem solid var(--color-error);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+}
+
+.panelDanger {
+  border-color: var(--color-error);
+}
+
+/* An ordinary choice: the same heavy border, but in the primary colour instead of the error one */
+.panelNeutral {
+  border-color: var(--color-primary);
+}
+
+.title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.125rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/*
+ * Colour is not the only cue: the wording and the heavy border mark the danger as well.
+ * The selectors are nested in .actions so that they beat the global .button rules whatever
+ * the order of the style sheets.
+ */
+.actions .danger {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: var(--color-on-error);
+}
+
+.actions .danger:hover {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: var(--color-on-error);
+  box-shadow: var(--shadow-md);
+}
+
+.error {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-left: 0.25rem solid var(--color-error);
+  border-radius: var(--radius-sm);
+}

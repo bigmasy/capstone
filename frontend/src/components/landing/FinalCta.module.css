@@ -1,0 +1,29 @@
+.band {
+  padding-block: var(--space-6);
+  background: var(--color-inverse-bg);
+  color: var(--color-on-inverse);
+}
+
+.inner {
+  text-align: center;
+}
+
+.inner :global(.cluster) {
+  justify-content: center;
+}
+
+.heading {
+  margin: 0 0 var(--space-2);
+  color: var(--color-on-inverse);
+}
+
+.text {
+  margin: 0 auto var(--space-4);
+  color: var(--color-on-inverse-muted);
+  font-size: var(--text-lg);
+}
+
+/* The dark band has its own focus colour: the default ring would not be visible on it */
+.band :global(a:focus-visible) {
+  outline-color: var(--color-focus-inverse);
+}

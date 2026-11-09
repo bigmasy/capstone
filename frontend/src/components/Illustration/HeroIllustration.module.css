@@ -1,0 +1,78 @@
+.art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.blob {
+  fill: var(--color-art-4);
+}
+
+.blobSmall {
+  fill: var(--color-accent-soft);
+}
+
+.card,
+.meterCard {
+  fill: var(--color-card);
+  stroke: var(--color-separator);
+  stroke-width: 2;
+}
+
+.gridLines path {
+  fill: none;
+  stroke: var(--color-separator);
+  stroke-width: 2;
+}
+
+.cell {
+  fill: var(--color-accent-soft);
+  stroke: var(--color-art-3);
+  stroke-width: 3;
+  stroke-dasharray: 8 6;
+}
+
+.cellDot {
+  fill: var(--color-art-3);
+}
+
+.link {
+  fill: none;
+  stroke: var(--color-art-1);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 2 9;
+}
+
+.personA {
+  fill: var(--color-art-1);
+}
+
+.personB {
+  fill: var(--color-art-2);
+}
+
+.barOn {
+  fill: var(--color-art-1);
+}
+
+.barOff {
+  fill: var(--color-art-4);
+  stroke: var(--color-art-2);
+  stroke-width: 2;
+}
+
+@media (forced-colors: active) {
+  .card,
+  .meterCard,
+  .cell {
+    stroke: CanvasText;
+  }
+
+  .personA,
+  .personB,
+  .barOn,
+  .cellDot {
+    fill: CanvasText;
+  }
+}

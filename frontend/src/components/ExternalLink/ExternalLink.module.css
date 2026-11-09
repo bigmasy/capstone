@@ -1,0 +1,8 @@
+.link {
+  display: inline;
+}
+
+.link svg {
+  margin-inline-start: var(--space-1);
+  vertical-align: -0.15em;
+}

@@ -1,0 +1,93 @@
+.header {
+  border-bottom: 0.0625rem solid var(--color-separator);
+  background: var(--color-card);
+}
+
+/* The menu button and the brand share the first row; the navigation wraps below on a phone */
+.inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding-block: var(--space-2);
+}
+
+.brand {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-size);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.brand:hover {
+  color: var(--color-primary-hover);
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.brandName {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+/* The descriptor repeats what the page says anyway; it is shown only where there is room */
+.brandDescriptor {
+  display: none;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+@media (min-width: 64rem) {
+  .brandDescriptor {
+    display: block;
+  }
+}
+
+.menuButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-size);
+  padding: var(--space-2) var(--space-3);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-card);
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.menuButton:hover {
+  background: var(--color-surface);
+}
+
+@media (min-width: 56rem) {
+  .inner {
+    flex-wrap: nowrap;
+  }
+
+  .brand {
+    flex: none;
+  }
+
+  .menuButton {
+    display: none;
+  }
+}

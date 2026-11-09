@@ -1,0 +1,27 @@
+.section {
+  padding-block: var(--space-6);
+}
+
+.tint {
+  background: var(--color-tint);
+}
+
+.header {
+  margin-bottom: var(--space-5);
+}
+
+.heading {
+  margin: 0 0 var(--space-2);
+}
+
+.lead {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+}
+
+@media (min-width: 48rem) {
+  .section {
+    padding-block: var(--space-7);
+  }
+}

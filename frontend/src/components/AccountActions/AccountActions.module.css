@@ -1,0 +1,9 @@
+.section {
+  margin-top: var(--space-5);
+  padding-top: var(--space-3);
+  border-top: 0.125rem solid var(--color-separator);
+}
+
+.item {
+  margin-bottom: var(--space-3);
+}

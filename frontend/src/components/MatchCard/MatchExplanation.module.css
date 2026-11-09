@@ -1,0 +1,138 @@
+.explanation {
+  margin: var(--space-3) 0;
+  border: 0.0625rem solid var(--color-separator);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  flex-wrap: wrap;
+  min-height: var(--target-size);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  list-style: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A chevron that turns when the disclosure is open */
+.summary::after {
+  content: "";
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-left: auto;
+  border-right: 0.125rem solid var(--color-text);
+  border-bottom: 0.125rem solid var(--color-text);
+  transform: rotate(45deg);
+  transition: transform var(--duration) var(--ease);
+}
+
+.explanation[open] > .summary::after {
+  transform: rotate(-135deg);
+}
+
+.explanation[open] > .summary {
+  border-bottom: 0.0625rem solid var(--color-separator);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.explanation > :not(summary) {
+  margin-inline: var(--space-3);
+}
+
+.explanation > :last-child {
+  margin-bottom: var(--space-3);
+}
+
+.heading {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.hint {
+  flex: 1 1 12rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.source {
+  margin: var(--space-3) var(--space-3) var(--space-2);
+}
+
+.badge {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  font-weight: 600;
+}
+
+/* The learned badge differs by a heavier border as well as by its wording */
+.badgeLearned {
+  border: 0.1875rem double var(--color-primary);
+  color: var(--color-primary);
+}
+
+.note {
+  display: block;
+  margin: var(--space-1) 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}
+
+.criteria {
+  display: grid;
+  gap: var(--space-3);
+  margin-block: 0 var(--space-2);
+}
+
+@media (min-width: 48rem) {
+  .criteria {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-4);
+  }
+}
+
+.row dt {
+  font-weight: 600;
+}
+
+.row dd {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.track {
+  display: block;
+  height: 0.5rem;
+  max-width: 16rem;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: 0.25rem;
+  background: var(--color-card);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+}
+
+.influence {
+  font-weight: 600;
+}
+
+.total {
+  margin-block: 0;
+  font-weight: 700;
+}

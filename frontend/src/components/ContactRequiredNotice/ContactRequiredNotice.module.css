@@ -1,0 +1,12 @@
+.notice {
+  max-width: 36rem;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-left: 0.25rem solid var(--color-error);
+}
+
+.message {
+  margin: 0 0 var(--space-2);
+}

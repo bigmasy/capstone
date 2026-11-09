@@ -1,0 +1,103 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.picker p {
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.note {
+  color: var(--color-text-muted);
+}
+
+/* The map keeps a usable height at 320 px width and in landscape */
+.map {
+  width: 100%;
+  height: 20rem;
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius);
+  /* Leaflet panes use z-index values up to 1000; keep them inside the frame */
+  isolation: isolate;
+}
+
+.mapFrame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The default link colour of the library is too light on the translucent attribution box */
+.mapFrame :global(.leaflet-control-attribution) {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* The link colour is too close to the text colour to tell the link apart, so it is underlined (WCAG 1.4.1) */
+.mapFrame :global(.leaflet-control-attribution a) {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+/* The privacy preview: the stored area, with a stroke and a fill from the colour tokens */
+.area {
+  stroke: var(--color-primary);
+  stroke-width: 3;
+  stroke-dasharray: 8 4;
+  fill: var(--color-primary);
+  fill-opacity: 0.2;
+}
+
+.preview {
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border-left: 0.25rem solid var(--color-primary);
+}
+
+.previewNote {
+  margin-top: var(--space-1);
+}
+
+/* Compass layout of the direction buttons: north on top, west and east beside, south below */
+.compass {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  grid-template-areas:
+    ". north ."
+    "west . east"
+    ". south .";
+  gap: var(--space-1);
+  justify-content: start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.compass legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.north {
+  grid-area: north;
+}
+
+.south {
+  grid-area: south;
+}
+
+.east {
+  grid-area: east;
+}
+
+.west {
+  grid-area: west;
+}

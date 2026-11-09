@@ -1,0 +1,26 @@
+/* The form sits on a raised card so that the page reads as one focused task */
+.form {
+  max-width: 26rem;
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 0.0625rem solid var(--color-separator);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: var(--shadow-md);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.submitError {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-left: 0.25rem solid var(--color-error);
+  border-radius: var(--radius-sm);
+}

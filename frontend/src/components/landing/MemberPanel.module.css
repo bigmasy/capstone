@@ -1,0 +1,21 @@
+.panel {
+  padding-block: var(--space-5);
+}
+
+.inner {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.profile h2,
+.heading {
+  margin-top: 0;
+  font-size: var(--text-xl);
+}
+
+@media (min-width: 56rem) {
+  .inner {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+}

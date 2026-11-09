@@ -1,0 +1,91 @@
+/* On a narrow screen the list is a disclosure panel that the menu button of the header controls */
+.nav {
+  display: none;
+  width: 100%;
+}
+
+.navOpen {
+  display: block;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2) 0 var(--space-3);
+  list-style: none;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  min-height: var(--target-size);
+  padding: 0 var(--space-3);
+  border-left: 0.25rem solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.link:hover {
+  background: var(--color-surface);
+  color: var(--color-primary-hover);
+}
+
+/* The active page is marked by weight and an edge, not by colour alone */
+.link[aria-current="page"] {
+  border-left-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-on-primary-soft);
+  font-weight: 700;
+}
+
+.cta {
+  width: 100%;
+}
+
+.logout {
+  width: 100%;
+}
+
+@media (min-width: 56rem) {
+  .nav,
+  .navOpen {
+    display: block;
+    width: auto;
+  }
+
+  .list {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0;
+  }
+
+  .link {
+    padding: 0 var(--space-3);
+    border-left: 0;
+    border-bottom: 0.1875rem solid transparent;
+    border-radius: 0;
+  }
+
+  .link:hover {
+    background: transparent;
+    border-bottom-color: var(--color-separator);
+  }
+
+  .link[aria-current="page"] {
+    background: transparent;
+    border-bottom-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .cta,
+  .logout {
+    width: auto;
+    margin-inline-start: var(--space-2);
+  }
+}

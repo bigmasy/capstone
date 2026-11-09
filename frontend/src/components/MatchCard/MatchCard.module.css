@@ -1,0 +1,17 @@
+.card {
+  padding: var(--space-4);
+  border: 0.0625rem solid var(--color-separator);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--duration) var(--ease);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.name {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xl);
+}

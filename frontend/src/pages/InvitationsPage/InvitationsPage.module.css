@@ -1,0 +1,36 @@
+.resultsHeading {
+  margin: 0 0 var(--space-2);
+}
+
+/* Holds the number of results (and the empty message); it is a live region, so it stays in the DOM */
+.summary {
+  margin: 0 0 var(--space-3);
+  font-weight: 600;
+}
+
+.summary:empty {
+  margin: 0;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feedback,
+.feedbackError {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border-left: 0.25rem solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+}
+
+.feedbackError {
+  border-left-color: var(--color-error);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}

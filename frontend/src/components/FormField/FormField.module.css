@@ -1,0 +1,56 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.label {
+  font-weight: 600;
+}
+
+.required {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.input {
+  width: 100%;
+  min-height: var(--target-size);
+  padding: var(--space-2) var(--space-3);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-card);
+  color: var(--color-text);
+  transition: border-color var(--duration-fast) var(--ease);
+}
+
+.input:hover {
+  border-color: var(--color-text);
+}
+
+/* A thicker border and a text prefix mark the invalid state in addition to its colour */
+.inputInvalid {
+  border-color: var(--color-error);
+  border-width: 0.25rem;
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-left: 0.25rem solid var(--color-error);
+  border-radius: var(--radius-sm);
+}
+
+/* The live region stays in the DOM while there is no message, but takes no visible space */
+.error:empty {
+  padding: 0;
+  border: 0;
+}

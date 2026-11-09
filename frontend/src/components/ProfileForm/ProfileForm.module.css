@@ -1,0 +1,123 @@
+.form {
+  max-width: 100%;
+  counter-reset: step;
+}
+
+/* Fieldsets reset: the browser default adds a width of min-content and a border */
+.group,
+.row {
+  min-width: 0;
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 0.125rem solid var(--color-separator);
+  border-radius: var(--radius);
+}
+
+/* A section of the profile is a numbered card, so that a long form reads as a few steps */
+.group {
+  counter-increment: step;
+  padding: var(--space-4);
+  border-width: 0.0625rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: var(--shadow-sm);
+}
+
+/* A row inside a group is a lighter box so that the nesting stays readable */
+.row {
+  margin-bottom: var(--space-3);
+  background: var(--color-surface);
+}
+
+/* The legend floats so that it sits inside the card instead of on its border */
+.legend {
+  display: flex;
+  align-items: center;
+  float: left;
+  width: 100%;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.legend + * {
+  clear: both;
+}
+
+.legend::before {
+  content: counter(step);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 0.9375rem;
+}
+
+.rowLegend {
+  padding: 0 var(--space-2);
+  font-weight: 700;
+}
+
+.note {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+}
+
+/* A notice that needs attention but is not an error: a border and the text carry the meaning */
+.notice {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface);
+  border-left: 0.25rem solid var(--color-primary);
+}
+
+.list {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-4);
+}
+
+.list li {
+  margin-bottom: var(--space-2);
+  max-width: 65ch;
+}
+
+.locate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.locate p {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.submitError {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-left: 0.25rem solid var(--color-error);
+}
+
+/* At 360 px the padding of the boxes is reduced so that the fields keep their width */
+@media (max-width: 30rem) {
+  .group,
+  .row {
+    padding: var(--space-2);
+  }
+}

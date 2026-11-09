@@ -1,0 +1,63 @@
+.accordion {
+  max-width: var(--content-width);
+  border: 0.0625rem solid var(--color-separator);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.item + .item {
+  border-top: 0.0625rem solid var(--color-separator);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-lg);
+  letter-spacing: 0;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 3.5rem;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--color-surface);
+}
+
+/* The ring is drawn inside the button so that the rounded container does not clip it */
+.button:focus-visible {
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+.chevron,
+.chevronOpen {
+  display: inline-flex;
+  color: var(--color-primary);
+  transition: transform var(--duration) var(--ease);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.panel {
+  padding: 0 var(--space-4) var(--space-3);
+  color: var(--color-text);
+}
+
+.panel p:last-child {
+  margin-bottom: 0;
+}

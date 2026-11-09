@@ -1,0 +1,71 @@
+.card {
+  padding: var(--space-4);
+  border: 0.0625rem solid var(--color-separator);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.role {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.name {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xl);
+}
+
+.status {
+  margin: 0 0 var(--space-1);
+}
+
+/* The status is written out; the border only gives it a shape */
+.badge {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-weight: 600;
+}
+
+.date {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+}
+
+.card dl {
+  margin-top: var(--space-3);
+}
+
+.contact {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-primary-soft);
+  border-left: 0.25rem solid var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+.contactHeading {
+  margin: 0 0 var(--space-1);
+  font-size: 1rem;
+}
+
+.contactValue {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.note {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

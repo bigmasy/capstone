@@ -1,0 +1,352 @@
+/* Reset and element defaults */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Percentage, not pixels, so the browser font size setting is respected */
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  /* Long words and URLs must wrap instead of forcing horizontal scrolling (reflow at 320 px) */
+  overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0 0 var(--space-3);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+}
+
+h2 {
+  margin-top: var(--space-5);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+}
+
+h3 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+h4 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+p {
+  max-width: 65ch;
+  margin: 0 0 var(--space-3);
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 0.0625rem;
+}
+
+a:hover {
+  color: var(--color-primary-hover);
+  text-decoration-thickness: 0.125rem;
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Programmatic focus on a heading or the main region needs no ring: focus is moved there for the screen reader */
+h1:focus,
+main:focus {
+  outline: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* A link that stands alone on its line (not inside a sentence) gets the full target height */
+.link-standalone {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-size);
+}
+
+/* Buttons: a visible 3:1 boundary and a comfortable target size */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--target-size);
+  min-width: var(--target-size);
+  padding: var(--space-2) var(--space-4);
+  border: 0.125rem solid var(--color-primary);
+  border-radius: var(--radius);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+.button:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--color-on-primary);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+
+/* Pending buttons use aria-disabled so that they keep keyboard focus */
+.button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/*
+ * A button that was used and is now inactive but whose label is the only confirmation (for
+ * example "Invitation sent"). Dimming it would take its text below 4.5:1, so it keeps full
+ * opacity and is told apart from a live button by the dashed edge and the tinted fill.
+ */
+.button[aria-disabled="true"].button-done {
+  border-style: dashed;
+  background: var(--color-primary-soft);
+  color: var(--color-on-primary-soft);
+  cursor: default;
+  opacity: 1;
+}
+
+.button-secondary {
+  background: var(--color-card);
+  color: var(--color-primary);
+}
+
+.button-secondary:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+  box-shadow: none;
+}
+
+.button-lg {
+  min-height: 3.25rem;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-lg);
+}
+
+/* Buttons on the dark band: the focus ring and the colours switch to the inverse set */
+.button-inverse {
+  border-color: var(--color-on-inverse);
+  background: var(--color-on-inverse);
+  color: var(--color-inverse-bg);
+}
+
+.button-inverse:hover {
+  border-color: var(--color-on-inverse);
+  background: var(--color-primary-soft);
+  color: var(--color-inverse-bg);
+}
+
+.button-inverse-outline {
+  background: transparent;
+  color: var(--color-on-inverse);
+}
+
+.button-inverse-outline:hover {
+  background: rgb(255 255 255 / 12%);
+  border-color: var(--color-on-inverse);
+  color: var(--color-on-inverse);
+}
+
+/* Layout utilities */
+.container {
+  width: 100%;
+  max-width: var(--container-width);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.stack > * + * {
+  margin-top: var(--space-3);
+}
+
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Responsive grids: one column on a phone, then two, three or four */
+.grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 40rem) {
+  .grid-2,
+  .grid-3,
+  .grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Surfaces */
+.card {
+  padding: var(--space-4);
+  border: 0.0625rem solid var(--color-separator);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Status chip; its meaning is always in the text */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.125rem var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-on-primary-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.badge-accent {
+  background: var(--color-accent-soft);
+  color: var(--color-on-accent-soft);
+}
+
+/* Notices: a heavy edge and the wording carry the meaning together with the colour */
+.alert {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 0.25rem solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-on-primary-soft);
+}
+
+.alert-error {
+  border-left-color: var(--color-error);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.alert-success {
+  border-left-color: var(--color-success);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.alert-warning {
+  border-left-color: var(--color-warning);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+/* Small uppercase label above a heading */
+.eyebrow {
+  margin: 0 0 var(--space-2);
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Content available to assistive technology only */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Honour Windows high contrast mode: keep system colours for controls */
+@media (forced-colors: active) {
+  .button,
+  .card {
+    border-color: ButtonText;
+  }
+
+  .badge {
+    border: 0.0625rem solid ButtonText;
+  }
+}

@@ -1,0 +1,28 @@
+.layout {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.story h3:first-child {
+  margin-top: 0;
+}
+
+.approach {
+  border-left: 0.3125rem solid var(--color-accent);
+}
+
+.approach h3 {
+  margin-top: 0;
+}
+
+.limits {
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 56rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+}
