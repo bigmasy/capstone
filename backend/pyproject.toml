@@ -1,0 +1,153 @@
+[project]
+name = "adaptive-sport-backend"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["."]
+
+[tool.ruff.lint]
+select = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "E", "F", "I", "B", "UP", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "S"]
+"migrations/**" = ["D"]
+# Shared contract file, kept verbatim; its package marker stays empty.
+"app/domain/errors.py" = ["D107"]
+"app/domain/__init__.py" = ["D104"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+check_untyped_defs = true
+files = ["app"]
+
+[[tool.mypy.overrides]]
+module = ["app.domain.*", "app.services.*"]
+strict = true
+
+# Experiment-only libraries without bundled type information
+[[tool.mypy.overrides]]
+module = ["scipy", "scipy.*", "sklearn", "sklearn.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+filterwarnings = [
+    # Reflection meets the PostGIS geography column that the ORM deliberately does not map.
+    "ignore:Did not recognize type:sqlalchemy.exc.SAWarning",
+]
+markers = [
+    "postgis: needs a PostgreSQL/PostGIS database; skipped unless TEST_DATABASE_URL is set",
+    "ml: needs lightgbm; skipped when the library is not installed",
+]
+
+[tool.importlinter]
+root_package = "app"
+include_external_packages = true
+
+# Layer table of the architecture decisions, section 3, written as forbidden pairs. Only direct
+# imports are checked: a layer may reach a forbidden one through an allowed neighbour (for example
+# api -> services -> repository), which is exactly the intended flow.
+
+[[tool.importlinter.contracts]]
+name = "Nothing imports the api layer"
+type = "forbidden"
+source_modules = [
+    "app.domain", "app.schemas", "app.database", "app.repository", "app.services",
+    "app.ranking", "app.experiment", "app.synthetic", "app.core", "app.conf",
+]
+forbidden_modules = ["app.api"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Domain uses only the standard library"
+type = "forbidden"
+source_modules = ["app.domain"]
+forbidden_modules = [
+    "app.api", "app.schemas", "app.database", "app.repository", "app.services",
+    "app.ranking", "app.experiment", "app.synthetic", "app.core", "app.conf",
+    "fastapi", "starlette", "pydantic", "pydantic_settings", "sqlalchemy", "alembic",
+    "numpy", "scipy", "sklearn", "lightgbm", "jwt", "argon2", "uvicorn", "httpx",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Schemas depend on domain and pydantic only"
+type = "forbidden"
+source_modules = ["app.schemas"]
+forbidden_modules = [
+    "app.api", "app.database", "app.repository", "app.services", "app.ranking",
+    "app.experiment", "app.synthetic", "app.core", "app.conf", "sqlalchemy", "fastapi",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Database and repository depend on domain, core and conf only"
+type = "forbidden"
+source_modules = ["app.database", "app.repository"]
+forbidden_modules = [
+    "app.api", "app.schemas", "app.services", "app.ranking", "app.experiment",
+    "app.synthetic",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Services do not reach api, ranking, experiment or synthetic"
+type = "forbidden"
+source_modules = ["app.services"]
+forbidden_modules = ["app.api", "app.ranking", "app.experiment", "app.synthetic"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Ranking depends on domain only"
+type = "forbidden"
+source_modules = ["app.ranking"]
+forbidden_modules = [
+    "app.api", "app.schemas", "app.database", "app.repository", "app.services",
+    "app.experiment", "app.synthetic", "app.core", "app.conf", "sqlalchemy", "fastapi",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Api never touches ORM models, repositories or the ranking internals"
+type = "forbidden"
+source_modules = ["app.api"]
+forbidden_modules = [
+    "app.database.models", "app.repository", "app.ranking", "app.experiment", "app.synthetic",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Api contains no SQL: it does not import sqlalchemy"
+type = "forbidden"
+source_modules = ["app.api"]
+forbidden_modules = ["sqlalchemy"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Services are framework-free: no sqlalchemy, fastapi or starlette"
+type = "forbidden"
+source_modules = ["app.services"]
+forbidden_modules = ["sqlalchemy", "fastapi", "starlette"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Experiment and synthetic stay out of the web stack"
+type = "forbidden"
+source_modules = ["app.experiment", "app.synthetic"]
+forbidden_modules = [
+    "app.api", "app.database", "app.repository", "app.core", "fastapi", "sqlalchemy",
+]
+allow_indirect_imports = true
