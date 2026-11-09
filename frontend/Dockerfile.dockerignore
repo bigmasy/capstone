@@ -1,0 +1,12 @@
+# Used by `docker build -f frontend/Dockerfile .` (repository root context): send only what the
+# image needs.
+*
+!frontend
+!docs/api/openapi.json
+frontend/node_modules
+frontend/dist
+frontend/coverage
+frontend/src/api/schema.d.ts
+**/*.tsbuildinfo
+frontend/playwright-report
+frontend/test-results

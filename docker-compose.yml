@@ -1,27 +1,254 @@
+# Whole stack with one command:  docker compose up --build
+# Add the demo accounts:         docker compose --profile demo up --build
+# Open https://localhost:8443 (self-signed development certificate, accept the warning once).
+#
+# Required environment (no defaults on purpose; compose refuses to start without them):
+#   POSTGRES_PASSWORD   password of the bootstrap superuser, used only to create the roles
+#   DB_OWNER_PASSWORD   password of adaptive_owner, which runs the migrations
+#   DB_API_PASSWORD     password of adaptive_api, which the running API connects as
+#   JWT_SECRET          token signing key, at least 32 bytes
+# Passwords are placed inside a database URL, so use URL-safe characters (letters and digits).
+# Required with --profile demo:
+#   SEED_PASSWORD       shared password of the demo accounts (10 to 128 characters)
+#
+# Optional:
+#   BIND_ADDRESS        host address the proxy listens on (default 127.0.0.1; 0.0.0.0 exposes it)
+#   HTTPS_PORT          host port of the HTTPS listener (default 8443)
+#   HTTP_PORT           host port of the HTTP listener, which only redirects (default 8080)
+#   PUBLIC_HOSTNAME     name the site is reached by (default localhost); goes into the
+#                       certificate, the HTTP redirect and the default CORS origin
+#   PUBLIC_HSTS         Strict-Transport-Security value, empty by default; set it only with a
+#                       real certificate, for example "max-age=31536000"
+#   CORS_ORIGINS        JSON list of allowed origins (default: the HTTPS origin of the proxy)
+#   SEED_COUNT          number of demo accounts (default 200)
+#   POSTGRES_DB, LOG_LEVEL, EDGE_SUBNET, PROXY_IP, BACKEND_IMAGE, FRONTEND_IMAGE, PROXY_IMAGE,
+#   CERTS_IMAGE
+#
+# The feed is ordered by a learned ranker. The one-shot ranker-train service trains it on the
+# synthetic world (fixed seeds, a few seconds) into the ranker_model volume, which the API mounts
+# read-only. Without a usable artifact the API still starts and falls back to the baseline order;
+# docker/smoke.sh --fallback checks that.
+#
+# Only the proxy publishes a host port. The database and the API are reachable from inside the
+# compose networks only. To inspect the database from the host for a debugging session, add
+# `ports: ["127.0.0.1:5432:5432"]` to the db service in an override file, never here.
+#
+# EDGE_SUBNET and PROXY_IP: the API trusts X-Forwarded-* headers from PROXY_IP only. Change both
+# together if the default subnet collides with another Docker network.
+
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+x-backend: &backend
+  build: ./backend
+  image: ${BACKEND_IMAGE:-adaptive-sport-backend:local}
+  environment: &backend-env
+    ENV: prod
+    JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set (at least 32 bytes)}
+    CORS_ORIGINS: ${CORS_ORIGINS:-["https://${PUBLIC_HOSTNAME:-localhost}:${HTTPS_PORT:-8443}"]}
+    LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    # uvicorn reads this variable as --forwarded-allow-ips: only the proxy may set the client
+    # address and scheme through X-Forwarded-For and X-Forwarded-Proto.
+    FORWARDED_ALLOW_IPS: ${PROXY_IP:-172.29.250.10}
+  <<: *hardening
+
 services:
   db:
-    image: postgres:16-alpine
+    image: postgis/postgis:16-3.4-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-adaptive}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-adaptive}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: ${POSTGRES_DB:-adaptive_sport}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?DB_OWNER_PASSWORD must be set}
+      DB_API_PASSWORD: ${DB_API_PASSWORD:?DB_API_PASSWORD must be set}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/db/init-roles.sh:/docker-entrypoint-initdb.d/20-roles.sh:ro
+    networks:
+      - internal
+    <<: *hardening
+    # The image entrypoint starts as root, fixes the ownership of the data directory and then
+    # drops to the postgres user; those are the only capabilities it needs.
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-adaptive} -d $${POSTGRES_DB:-adaptive_sport}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 12
+    restart: unless-stopped
 
-  api:
-    build: ./backend
+  # One-shot: applies the migrations as the schema owner and exits.
+  migrate:
+    <<: *backend
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-adaptive}:${POSTGRES_PASSWORD:-adaptive}@db:5432/${POSTGRES_DB:-adaptive_sport}
-    ports:
-      - "8000:8000"
+      <<: *backend-env
+      DB_URL: postgresql+asyncpg://adaptive_owner:${DB_OWNER_PASSWORD:?DB_OWNER_PASSWORD must be set}@db:5432/${POSTGRES_DB:-adaptive_sport}
+    command: ["alembic", "upgrade", "head"]
+    read_only: true
+    networks:
+      - internal
     depends_on:
       db:
         condition: service_healthy
+    restart: "no"
+
+  # One-shot: trains the demo ranker on the synthetic world with fixed seeds and writes
+  # model.txt and manifest.json into the ranker_model volume. It needs neither the database nor
+  # the network. The artifact is never part of the repository or of the image; every fresh
+  # volume gets a new one, and the API falls back to the baseline ranking if it is missing.
+  ranker-train:
+    <<: *backend
+    environment: {}
+    command: ["python", "-m", "app.experiment", "train", "--config", "demo", "--out", "/var/lib/ranker"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ranker_model:/var/lib/ranker
+    network_mode: none
+    restart: "no"
+
+  # The API connects as adaptive_api, which can read and write data but cannot change the schema.
+  api:
+    <<: *backend
+    environment:
+      <<: *backend-env
+      RANKER_ENABLED: "true"
+      RANKER_ARTIFACT_DIR: /var/lib/ranker
+      DB_URL: postgresql+asyncpg://adaptive_api:${DB_API_PASSWORD:?DB_API_PASSWORD must be set}@db:5432/${POSTGRES_DB:-adaptive_sport}
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ranker_model:/var/lib/ranker:ro
+    networks:
+      - internal
+      - edge
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      ranker-train:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # Demo accounts from the synthetic generator (profile "demo"). The explicit profile is the
+  # opt-in that --force-demo stands for, because the API runs with ENV=prod.
+  seed:
+    <<: *backend
+    environment:
+      <<: *backend-env
+      DB_URL: postgresql+asyncpg://adaptive_api:${DB_API_PASSWORD:?DB_API_PASSWORD must be set}@db:5432/${POSTGRES_DB:-adaptive_sport}
+      # Left empty when unset; the tool then refuses to run and says which variable is missing.
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
+    command: ["python", "-m", "app.tools.seed", "--force-demo", "--count", "${SEED_COUNT:-200}"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - internal
+    profiles: ["demo"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: ${FRONTEND_IMAGE:-adaptive-sport-frontend:local}
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - edge
+    <<: *hardening
+    restart: unless-stopped
+
+  # One-shot: writes the self-signed development certificate into the certs volume.
+  certs:
+    build:
+      context: ./docker/proxy
+      target: certs
+    image: ${CERTS_IMAGE:-adaptive-sport-certs:local}
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-localhost}
+    volumes:
+      - certs:/certs
+    read_only: true
+    network_mode: none
+    <<: *hardening
+    restart: "no"
+
+  proxy:
+    build:
+      context: ./docker/proxy
+      target: proxy
+    image: ${PROXY_IMAGE:-adaptive-sport-proxy:local}
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-localhost}
+      PUBLIC_HTTPS_PORT: ${HTTPS_PORT:-8443}
+      PUBLIC_HSTS: ${PUBLIC_HSTS:-}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8080}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${HTTPS_PORT:-8443}:8443"
+    volumes:
+      - certs:/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+      # The entrypoint renders the configuration templates here.
+      - /etc/nginx/conf.d:uid=101,gid=101
+    networks:
+      edge:
+        ipv4_address: ${PROXY_IP:-172.29.250.10}
+    depends_on:
+      certs:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    <<: *hardening
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--no-check-certificate", "https://127.0.0.1:8443/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+networks:
+  # The proxy, the API and the frontend. The subnet is fixed so the API can trust the proxy by
+  # address.
+  edge:
+    ipam:
+      config:
+        - subnet: ${EDGE_SUBNET:-172.29.250.0/24}
+  # The database and its clients; no route to the outside.
+  internal:
+    internal: true
 
 volumes:
   pgdata:
+  certs:
+  # The trained ranker artifact; written by ranker-train, read-only for the API.
+  ranker_model:

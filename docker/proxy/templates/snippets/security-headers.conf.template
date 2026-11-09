@@ -1,0 +1,12 @@
+# Headers for responses the proxy produces itself or that come from the API. A location that
+# sets any add_header of its own does not inherit these, so each includes this file.
+# An empty PUBLIC_HSTS leaves the Strict-Transport-Security header out (the default, because
+# a self-signed development certificate would lock the browser out of the host for the whole
+# max-age).
+add_header Strict-Transport-Security "${PUBLIC_HSTS}" always;
+add_header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "no-referrer" always;
+add_header Cross-Origin-Resource-Policy "same-origin" always;
+add_header Cache-Control "no-store" always;
