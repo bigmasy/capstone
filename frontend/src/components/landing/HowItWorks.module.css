@@ -1,3 +1,4 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
 .steps {
   margin: 0;
   padding: 0;
@@ -5,35 +6,21 @@
 }
 
 .step {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  padding-top: var(--space-3);
+  border-top: 0.125rem solid var(--color-primary);
 }
 
-.top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-
-.iconWrap {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 3.25rem;
-  height: 3.25rem;
-  border-radius: var(--radius);
-  background: var(--color-primary-soft);
-  color: var(--color-on-primary-soft);
-}
-
-.number {
-  color: var(--color-accent);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+/* A large numeral is the entry point of each step; the name of the step is read by screen readers */
+.numeral {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--color-primary);
+  font-size: var(--text-4xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: var(--tracking-display);
+  line-height: 1;
 }
 
 .title {

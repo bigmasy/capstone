@@ -1,3 +1,4 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
 .resultsHeading {
   margin: 0 0 var(--space-2);
 }
@@ -18,6 +19,13 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* Two columns once the container is wide enough; a card fills its grid row, so the rows line up */
+@media (min-width: 64rem) {
+  .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .empty {

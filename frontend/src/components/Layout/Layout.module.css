@@ -1,3 +1,4 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
 .shell {
   display: flex;
   flex-direction: column;
@@ -17,4 +18,42 @@
 .mainWide {
   max-width: none;
   padding: 0;
+}
+
+/* Account pages: the form on the left, a photograph of snow tracks on the right (wide screens only) */
+.mainAuth {
+  max-width: var(--container-width);
+}
+
+.authSplit {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.authForm {
+  min-width: 0;
+}
+
+.authPhoto {
+  display: none;
+}
+
+@media (min-width: 56rem) {
+  .authSplit {
+    grid-template-columns: minmax(0, 30rem) minmax(0, 1fr);
+    gap: var(--space-6);
+    align-items: stretch;
+  }
+
+  .authPhoto {
+    display: block;
+    min-height: 30rem;
+    border-radius: var(--radius-xl);
+    background: var(--color-veil) url("/images/snow.jpg") 50% 45% / cover no-repeat;
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+.mainApp {
+  max-width: var(--container-width);
 }

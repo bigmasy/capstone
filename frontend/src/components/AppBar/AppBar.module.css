@@ -1,6 +1,12 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   border-bottom: 0.0625rem solid var(--color-separator);
-  background: var(--color-card);
+  background: color-mix(in oklab, var(--color-bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(0.75rem);
+  backdrop-filter: blur(0.75rem);
 }
 
 /* The menu button and the brand share the first row; the navigation wraps below on a phone */
@@ -40,7 +46,7 @@
 .brandName {
   font-size: var(--text-xl);
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-display);
   line-height: 1.1;
 }
 
@@ -76,6 +82,10 @@
 
 .menuButton:hover {
   background: var(--color-surface);
+}
+
+.menuButton:active {
+  background: var(--color-primary-soft);
 }
 
 @media (min-width: 56rem) {

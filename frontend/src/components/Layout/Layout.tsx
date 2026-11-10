@@ -6,10 +6,21 @@ import ErrorBoundary from "../ErrorBoundary/ErrorBoundary";
 import Footer from "../Footer/Footer";
 import SkipLink from "../SkipLink/SkipLink";
 import VerificationBanner from "../VerificationBanner/VerificationBanner";
+import { AUTH_PATHS } from "./photoPages";
 import styles from "./Layout.module.css";
 
 const MAIN_ID = "main-content";
 const LANDING_PATH = "/";
+// Sign-in and account pages sit beside a photograph on a wide screen
+// The partner feed is a grid of cards and gets the full container width
+const WIDE_APP_PATHS = new Set(["/matches", "/about"]);
+
+function mainClass(pathname: string): string {
+  if (pathname === LANDING_PATH) return `${styles.main} ${styles.mainWide}`;
+  if (AUTH_PATHS.has(pathname)) return `${styles.main} ${styles.mainAuth}`;
+  if (WIDE_APP_PATHS.has(pathname)) return `${styles.main} ${styles.mainApp}`;
+  return styles.main ?? "";
+}
 
 /**
  * Page shell with the landmarks (banner, navigation, main, contentinfo).
@@ -48,14 +59,21 @@ const Layout = () => {
       <SkipLink targetId={MAIN_ID} />
       <AppBar />
       <VerificationBanner />
-      <main
-        id={MAIN_ID}
-        className={location.pathname === LANDING_PATH ? `${styles.main} ${styles.mainWide}` : styles.main}
-        tabIndex={-1}
-      >
-        <ErrorBoundary key={location.key}>
-          <Outlet />
-        </ErrorBoundary>
+      <main id={MAIN_ID} className={mainClass(location.pathname)} tabIndex={-1}>
+        {AUTH_PATHS.has(location.pathname) ? (
+          <div className={styles.authSplit}>
+            <div className={styles.authForm}>
+              <ErrorBoundary key={location.key}>
+                <Outlet />
+              </ErrorBoundary>
+            </div>
+            <div className={styles.authPhoto} aria-hidden="true" />
+          </div>
+        ) : (
+          <ErrorBoundary key={location.key}>
+            <Outlet />
+          </ErrorBoundary>
+        )}
       </main>
       <Footer />
       <div className="visually-hidden" role="status" ref={announcerRef} />

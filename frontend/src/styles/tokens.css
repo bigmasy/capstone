@@ -1,46 +1,51 @@
+/* Hallmark · shape: kept (a redesign of every screen inside the project's own routes) · genre: modern-minimal · theme: Dose (deal 3/3, seed calm-web-platform-where-f608·8fa0258e·2026-11-10·r0) · redesign: full
+ * hero: Photograph (pool lanes) with a product card · nav: top bar, one action · footer: ink band · imagery: three library photographs, the product's own screens · signature: the partner card with its per-criterion bars · dose: white
+ * axes: light/grotesk-sans/chromatic-green · posture: committed · contrast: pass · fold: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E3 S4 R4 V3 · weakest: V, the type is the system face because the CSP allows no external fonts; weight, size and tracking carry the voice instead */
+/* Hallmark · answered F4 · the four button recipes are the states of one primary button (pending, done) and its inverse twin, never four competing primaries */
 /*
  * Design tokens. The contrast of every text/background and component/background pair
  * listed in src/styles/tokens.test.ts is checked there against WCAG 2.1 AA (4.5:1 for text,
  * 3:1 for user interface components and focus indicators), once for the light palette and
  * once for the dark palette. Colours must be written as #rrggbb so that the test can read them.
  *
- * The palette is deliberately calm: a deep teal as the main colour, warm paper-like
- * surfaces and one muted terracotta accent that is used sparingly.
+ * The palette is calm and warm: a pine green as the main colour, warm paper surfaces tinted
+ * toward the green (no pure white), and one ember accent used sparingly.
  */
 :root {
   color-scheme: light dark;
 
   /* Surfaces: page, subtle panel, raised card, tinted band */
-  --color-bg: #f8f7f3;
-  --color-surface: #eef1ee;
-  --color-card: #ffffff;
-  --color-tint: #e4eeec;
+  --color-bg: #f6f3ec;
+  --color-surface: #ecefe6;
+  --color-card: #fffdf8;
+  --color-tint: #e0ece3;
 
   /* Text */
-  --color-text: #16222a;
-  --color-text-muted: #43515b;
-  --color-on-primary: #ffffff;
+  --color-text: #14231d;
+  --color-text-muted: #44544b;
+  --color-on-primary: #fbfaf4;
 
   /* Actions and links */
-  --color-primary: #1b5a63;
-  --color-primary-hover: #123f46;
-  --color-primary-soft: #d9ebe9;
-  --color-on-primary-soft: #123f46;
+  --color-primary: #1d6a4f;
+  --color-primary-hover: #134c39;
+  --color-primary-soft: #d5e9dd;
+  --color-on-primary-soft: #0f3f2e;
 
-  /* Accent: eyebrows, highlights, small marks */
-  --color-accent: #9a4a1f;
-  --color-on-accent: #ffffff;
-  --color-accent-soft: #f7e6d8;
-  --color-on-accent-soft: #6e3210;
+  /* Accent: highlights and small marks */
+  --color-accent: #9c4417;
+  --color-on-accent: #fffaf4;
+  --color-accent-soft: #f8e2cf;
+  --color-on-accent-soft: #6a2e0d;
 
   /* Component boundaries (inputs, buttons) need 3:1 against the surface */
-  --color-border: #66727b;
+  --color-border: #66756c;
   /* Decorative separators only; never the sole boundary of a control */
-  --color-separator: #cfd6d3;
+  --color-separator: #d2d6ca;
 
   /* Status colours: always paired with text, never colour alone */
   --color-error: #a1001a;
-  --color-on-error: #ffffff;
+  --color-on-error: #fffaf9;
   --color-error-bg: #fbe9ec;
   --color-success: #1c6b3b;
   --color-success-bg: #e4f3e9;
@@ -48,39 +53,50 @@
   --color-warning-bg: #fcf0d2;
 
   /* Focus indicator */
-  --color-focus: #1b5a63;
+  --color-focus: #1d6a4f;
   --color-focus-inverse: #ffd37a;
 
   /* Dark band (footer, call to action) */
-  --color-inverse-bg: #13303a;
-  --color-on-inverse: #f1f6f5;
-  --color-on-inverse-muted: #b9cdd0;
-  --color-inverse-link: #a8dcd5;
+  --color-inverse-bg: #10291f;
+  --color-on-inverse: #f3f6f0;
+  --color-on-inverse-muted: #bccbc2;
+  --color-inverse-link: #a9dfc3;
+  /* Hover fill of a light button on the dark band, and the wash of an outline button there */
+  --color-inverse-action-hover: #d6e8dd;
+  --color-inverse-wash: rgb(243 246 240 / 14%);
 
   /* Illustration fills; decorative, they carry no information */
-  --color-art-1: #1b5a63;
-  --color-art-2: #7fb8b2;
-  --color-art-3: #c9794a;
-  --color-art-4: #e4eeec;
+  --color-art-1: #1d6a4f;
+  --color-art-2: #86c3a4;
+  --color-art-3: #d98a55;
+  --color-art-4: #e0ece3;
 
   /* Second half of the logo mark; decorative, the name is always written next to it */
-  --color-mark-accent: #e0803f;
+  --color-mark-accent: #e8883f;
+
+  /* Photographs sit in the palette: a little less saturation and contrast than the originals */
+  --photo-filter: saturate(0.85) contrast(0.94);
+  /* Veil over a photograph that carries text: warm ink, strong enough for 4.5:1 on white text */
+  --color-veil: #0d2118;
 
   --focus-ring-width: 0.1875rem;
   --focus-ring-offset: 0.125rem;
 
   /* Typography: system fonts only, because the content security policy allows no external fonts */
-  --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif;
   --font-size-base: 1rem;
   --line-height-base: 1.6;
-  --line-height-tight: 1.2;
+  --line-height-tight: 1.12;
+  --tracking-display: -0.025em;
   --text-sm: 0.9375rem;
   --text-md: 1rem;
   --text-lg: 1.125rem;
   --text-xl: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
-  --text-2xl: clamp(1.5rem, 1.25rem + 1vw, 2rem);
-  --text-3xl: clamp(1.75rem, 1.3rem + 1.8vw, 2.5rem);
-  --text-4xl: clamp(2rem, 1.4rem + 2.8vw, 3.25rem);
+  --text-2xl: clamp(1.625rem, 1.3rem + 1.2vw, 2.25rem);
+  --text-3xl: clamp(2rem, 1.4rem + 2.2vw, 3rem);
+  --text-4xl: clamp(2.5rem, 1.6rem + 3.6vw, 4.25rem);
 
   /* Spacing on a 4 px base; rem keeps the user's font size preference */
   --space-1: 0.25rem;
@@ -92,17 +108,21 @@
   --space-7: 4rem;
   --space-8: 6rem;
 
-  --radius-sm: 0.375rem;
-  --radius: 0.5rem;
-  --radius-lg: 1rem;
+  --radius-sm: 0.5rem;
+  --radius: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
   --radius-pill: 62.5rem;
 
-  --shadow-sm: 0 1px 2px rgb(22 34 42 / 8%), 0 1px 1px rgb(22 34 42 / 6%);
-  --shadow-md: 0 4px 12px rgb(22 34 42 / 10%), 0 1px 3px rgb(22 34 42 / 8%);
+  --shadow-sm: 0 1px 2px rgb(20 35 29 / 8%), 0 1px 1px rgb(20 35 29 / 5%);
+  --shadow-md:
+    0 2px 4px rgb(20 35 29 / 6%), 0 12px 28px -12px rgb(29 80 58 / 28%);
+  --shadow-lift:
+    0 1px 2px rgb(20 35 29 / 8%), 0 18px 40px -16px rgb(29 80 58 / 36%);
 
   --target-size: 2.75rem;
   --content-width: 48rem;
-  --container-width: 72rem;
+  --container-width: 74rem;
   --gutter: var(--space-3);
 
   --duration-fast: 120ms;
@@ -112,27 +132,27 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #0f171b;
-    --color-surface: #172127;
-    --color-card: #1b272d;
-    --color-tint: #17282b;
+    --color-bg: #0e1612;
+    --color-surface: #151f1a;
+    --color-card: #1a2620;
+    --color-tint: #16251d;
 
-    --color-text: #e9eff1;
-    --color-text-muted: #a7b6bd;
-    --color-on-primary: #0b1a1d;
+    --color-text: #e8efe9;
+    --color-text-muted: #a9b8af;
+    --color-on-primary: #08170f;
 
-    --color-primary: #7fc8c0;
-    --color-primary-hover: #a6dcd6;
-    --color-primary-soft: #1f3b3d;
-    --color-on-primary-soft: #bfe6e1;
+    --color-primary: #7fcaa5;
+    --color-primary-hover: #a4dcc0;
+    --color-primary-soft: #1e3a2d;
+    --color-on-primary-soft: #c2e8d4;
 
-    --color-accent: #e59a6e;
+    --color-accent: #ec9d6b;
     --color-on-accent: #1d0e05;
     --color-accent-soft: #3a2417;
     --color-on-accent-soft: #f3c9ad;
 
-    --color-border: #7b8a93;
-    --color-separator: #2f3d44;
+    --color-border: #7b8b82;
+    --color-separator: #2c3a32;
 
     --color-error: #ff9fae;
     --color-on-error: #2a0a10;
@@ -142,22 +162,27 @@
     --color-warning: #f2cb7a;
     --color-warning-bg: #382b0e;
 
-    --color-focus: #8fd4cd;
+    --color-focus: #8fd9b4;
     --color-focus-inverse: #ffd37a;
 
-    --color-inverse-bg: #0a1114;
-    --color-on-inverse: #e9eff1;
-    --color-on-inverse-muted: #a7b6bd;
-    --color-inverse-link: #8fd4cd;
+    --color-inverse-bg: #08110d;
+    --color-on-inverse: #e8efe9;
+    --color-on-inverse-muted: #a9b8af;
+    --color-inverse-link: #8fd9b4;
+    --color-inverse-action-hover: #cfe0d6;
+    --color-inverse-wash: rgb(232 239 233 / 14%);
 
-    --color-art-1: #7fc8c0;
-    --color-art-2: #2f6a69;
-    --color-art-3: #e59a6e;
-    --color-art-4: #1f3b3d;
+    --color-art-1: #7fcaa5;
+    --color-art-2: #2f6a50;
+    --color-art-3: #ec9d6b;
+    --color-art-4: #1e3a2d;
 
     --color-mark-accent: #b4531d;
 
+    --photo-filter: saturate(0.8) contrast(0.92) brightness(0.82);
+
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
-    --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);
+    --shadow-md: 0 4px 14px rgb(0 0 0 / 45%);
+    --shadow-lift: 0 18px 40px -16px rgb(0 0 0 / 60%);
   }
 }

@@ -36,6 +36,24 @@ export const uk = {
     linksHeading: "Сторінки",
     tagline:
       "Пошук партнерів для тренувань за функціональними можливостями, а не за діагнозом.",
+    photosLabel: "Фотографії:",
+    photos: [
+      {
+        author: "KeepActive Australia",
+        licence: "CC BY-SA 4.0",
+        href: "https://commons.wikimedia.org/wiki/File:Swimming_Pool_lanes_and_starting_blocks_at_AIS.jpg",
+      },
+      {
+        author: "Ser Amantio di Nicolao",
+        licence: "CC BY-SA 4.0",
+        href: "https://commons.wikimedia.org/wiki/File:Colorful_pile_of_dumbbells_at_the_gym.jpg",
+      },
+      {
+        author: "Ximeg",
+        licence: "CC BY-SA 3.0",
+        href: "https://commons.wikimedia.org/wiki/File:Skiing_in_Oberhof_March_2013-12-Ski_track.jpg",
+      },
+    ],
   },
   pages: {
     home: {
@@ -81,7 +99,6 @@ export const uk = {
   },
   landing: {
     hero: {
-      eyebrow: "Для ветеранів і ветеранок",
       registerCta: "Створити обліковий запис",
       learnMore: "Дізнатися більше",
       memberCta: "Перейти до партнерів",
@@ -90,7 +107,7 @@ export const uk = {
       preview: {
         label: "Приклад картки партнера",
         name: "Партнер для тренувань",
-        place: "Київ, Подільський район · 5–10 км",
+        place: "Київ, Подільський район, 5–10 км",
         sports: ["Плавання", "Настільний теніс"],
         criteria: [
           { name: "Вид спорту", share: 100 },

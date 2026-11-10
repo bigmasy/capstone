@@ -1,7 +1,5 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
+/* The card itself is the shared .status-panel; the result text keeps its own rhythm */
 .result {
-  max-width: 36rem;
-}
-
-.result p {
-  margin: 0 0 var(--space-3);
+  justify-items: start;
 }

@@ -62,7 +62,7 @@ const MatchesPage = () => {
   let content;
   if (isNoProfile(feed.error)) {
     content = (
-      <div>
+      <div className="card status-panel">
         <p>{text.noProfile}</p>
         <Link className="button" to="/profile">
           {text.noProfileLink}
@@ -122,17 +122,24 @@ const MatchesPage = () => {
     );
   }
 
+  // Filters narrow a list; with no profile, or nobody to narrow, they have nothing to act on.
+  // They stay once a filter is set, because that is how the person gets back to the full list.
+  const noProfile = isNoProfile(feed.error);
+  const nothingToFilter = noProfile || (data !== undefined && total === 0 && !radius && !sport);
+
   return (
     <>
       <h1>{uk.pages.matches.title}</h1>
-      <p>{text.lead}</p>
-      <MatchFilters
-        radius={radius}
-        sport={sport}
-        taxonomy={taxonomy.data}
-        onRadiusChange={(value) => changeFilter(() => setRadius(value))}
-        onSportChange={(value) => changeFilter(() => setSport(value))}
-      />
+      {!noProfile && <p>{text.lead}</p>}
+      {!nothingToFilter && (
+        <MatchFilters
+          radius={radius}
+          sport={sport}
+          taxonomy={taxonomy.data}
+          onRadiusChange={(value) => changeFilter(() => setRadius(value))}
+          onSportChange={(value) => changeFilter(() => setSport(value))}
+        />
+      )}
       {/* Stays mounted so that a change of its text (the number of results) is announced */}
       <p className={styles.summary} role="status">
         {announcement}

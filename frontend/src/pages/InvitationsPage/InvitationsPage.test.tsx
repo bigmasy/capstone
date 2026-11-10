@@ -254,8 +254,20 @@ describe("InvitationsPage", () => {
       expect(screen.getByLabelText(text.statusFilter)).toHaveValue("pending");
     });
 
-    it("offers every status and explains an empty filtered list", async () => {
+    it("does not offer the status filter while there is nothing to filter", async () => {
       routeFetch(fetchMock, routes({ "GET /invitations": () => jsonResponse(200, []) }));
+      renderPage();
+
+      expect(await screen.findByText(text.emptyIncoming)).toBeInTheDocument();
+      expect(screen.queryByLabelText(text.statusFilter)).toBeNull();
+    });
+
+    it("offers every status and explains an empty filtered list", async () => {
+      // The first answer has one invitation, so the filter is offered; the filtered one is empty
+      routeFetch(
+        fetchMock,
+        routes({ "GET /invitations": sequence([makeInvitation("incoming")], []) }),
+      );
       const user = userEvent.setup();
       renderPage();
       const filter = await screen.findByLabelText(text.statusFilter);

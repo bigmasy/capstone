@@ -1,7 +1,19 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
 .band {
-  padding-block: var(--space-6);
-  background: var(--color-inverse-bg);
+  position: relative;
+  isolation: isolate;
+  padding-block: var(--space-7);
+  background: var(--color-veil) url("/images/snow.jpg") 50% 40% / cover
+    no-repeat;
   color: var(--color-on-inverse);
+}
+
+/* A veil over the photograph keeps the text at 4.5:1 whatever part of the picture it lands on */
+.veil {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in oklab, var(--color-veil) 72%, transparent);
 }
 
 .inner {
@@ -13,13 +25,13 @@
 }
 
 .heading {
-  margin: 0 0 var(--space-2);
+  margin: 0 auto var(--space-2);
   color: var(--color-on-inverse);
 }
 
 .text {
   margin: 0 auto var(--space-4);
-  color: var(--color-on-inverse-muted);
+  color: var(--color-on-inverse);
   font-size: var(--text-lg);
 }
 

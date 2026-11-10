@@ -10,32 +10,47 @@ interface HeroProps {
 
 const text = uk.landing.hero;
 
-/** Opening band of the landing page: the value proposition, the calls to action and the privacy assurances. */
+/**
+ * Opening band of the landing page: a photograph of a pool under a dark veil, the value
+ * proposition, the calls to action, and a sample partner card. The photograph is decorative.
+ */
 const Hero = ({ isLoggedIn }: HeroProps) => (
   <section className={styles.hero}>
-    {/* The soft shapes live in a box of their own, so that the section itself never clips text */}
-    <div className={styles.decor} aria-hidden="true" />
+    <img
+      className={styles.photo}
+      src="/images/pool.jpg"
+      alt=""
+      width="1600"
+      height="1200"
+      fetchPriority="high"
+    />
+    <div className={styles.veil} aria-hidden="true" />
     <div className={`container ${styles.inner}`}>
       <div className={styles.copy}>
-        <p className="eyebrow">{text.eyebrow}</p>
         <h1 className={styles.title}>{uk.pages.home.title}</h1>
         <p className={styles.lead}>{uk.pages.home.lead}</p>
         <div className="cluster">
           {isLoggedIn ? (
             <>
-              <Link className="button button-lg" to="/matches">
+              <Link className="button button-lg button-inverse" to="/matches">
                 {text.memberCta}
               </Link>
-              <Link className="button button-lg button-secondary" to="/profile">
+              <Link
+                className="button button-lg button-inverse-outline"
+                to="/profile"
+              >
                 {text.memberSecondary}
               </Link>
             </>
           ) : (
             <>
-              <Link className="button button-lg" to="/register">
+              <Link className="button button-lg button-inverse" to="/register">
                 {text.registerCta}
               </Link>
-              <Link className="button button-lg button-secondary" to="/about">
+              <Link
+                className="button button-lg button-inverse-outline"
+                to="/about"
+              >
                 {text.learnMore}
               </Link>
             </>

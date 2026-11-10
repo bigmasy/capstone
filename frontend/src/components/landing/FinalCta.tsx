@@ -15,18 +15,24 @@ const FinalCta = ({ isLoggedIn }: FinalCtaProps) => {
 
   return (
     <section className={styles.band} aria-labelledby={headingId}>
+      <div className={styles.veil} aria-hidden="true" />
       <div className={`container ${styles.inner}`}>
         <h2 id={headingId} className={styles.heading}>
           {isLoggedIn ? text.memberHeading : text.heading}
         </h2>
-        <p className={styles.text}>{isLoggedIn ? text.memberText : text.text}</p>
+        <p className={styles.text}>
+          {isLoggedIn ? text.memberText : text.text}
+        </p>
         <div className="cluster">
           {isLoggedIn ? (
             <>
               <Link className="button button-lg button-inverse" to="/matches">
                 {uk.landing.hero.memberCta}
               </Link>
-              <Link className="button button-lg button-inverse-outline" to="/invitations">
+              <Link
+                className="button button-lg button-inverse-outline"
+                to="/invitations"
+              >
                 {text.invitations}
               </Link>
             </>
@@ -35,7 +41,10 @@ const FinalCta = ({ isLoggedIn }: FinalCtaProps) => {
               <Link className="button button-lg button-inverse" to="/register">
                 {uk.landing.hero.registerCta}
               </Link>
-              <Link className="button button-lg button-inverse-outline" to="/login">
+              <Link
+                className="button button-lg button-inverse-outline"
+                to="/login"
+              >
                 {uk.nav.login}
               </Link>
             </>

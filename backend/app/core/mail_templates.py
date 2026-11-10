@@ -54,7 +54,7 @@ def _plain(content: _Content) -> str:
 def _paragraphs_html(paragraphs: tuple[str, ...]) -> str:
     return "".join(
         f'<p class="text" style="margin:0 0 16px;font-size:16px;line-height:26px;'
-        f'color:#16222a;">{escape(p)}</p>'
+        f'color:#14231d;">{escape(p)}</p>'
         for p in paragraphs
     )
 
@@ -64,7 +64,7 @@ def _html(content: _Content) -> str:
     link = escape(content.link, quote=True)
     notes = "".join(
         f'<p class="muted" style="margin:0 0 8px;font-size:14px;line-height:22px;'
-        f'color:#43515b;">{escape(note)}</p>'
+        f'color:#44544b;">{escape(note)}</p>'
         for note in content.notes
     )
     return f"""<!doctype html>
@@ -77,15 +77,15 @@ def _html(content: _Content) -> str:
 <title>{escape(content.heading)}</title>
 <style>
   @media (prefers-color-scheme: dark) {{
-    .page {{ background-color: #0f171b !important; }}
-    .card {{ background-color: #172127 !important; }}
-    .text, .brand {{ color: #e9eff1 !important; }}
-    .muted {{ color: #a7b6bd !important; }}
-    .rule {{ border-color: #2a3840 !important; }}
-    .button {{ background-color: #7fc8c0 !important; color: #0f171b !important; }}
-    .linkbox {{ background-color: #0f171b !important; color: #a6dcd6 !important; }}
-    .linkbox a {{ color: #a6dcd6 !important; }}
-    .muted a {{ color: #a7b6bd !important; }}
+    .page {{ background-color: #0e1612 !important; }}
+    .card {{ background-color: #1a2620 !important; }}
+    .text, .brand {{ color: #e8efe9 !important; }}
+    .muted {{ color: #a9b8af !important; }}
+    .rule {{ border-color: #2c3a32 !important; }}
+    .button {{ background-color: #7fcaa5 !important; color: #0e1612 !important; }}
+    .linkbox {{ background-color: #0e1612 !important; color: #a4dcc0 !important; }}
+    .linkbox a {{ color: #a4dcc0 !important; }}
+    .muted a {{ color: #a9b8af !important; }}
   }}
   @media only screen and (max-width: 600px) {{
     .card {{ border-radius: 0 !important; }}
@@ -95,7 +95,7 @@ def _html(content: _Content) -> str:
 </head>
 <body style="margin:0;padding:0;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">{escape(content.preheader)}</div>
-<table role="presentation" class="page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f8f7f3;">
+<table role="presentation" class="page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f6f3ec;">
   <tr>
     <td align="center" style="padding:32px 12px;">
       <table role="presentation" class="card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background-color:#ffffff;border-radius:16px;">
@@ -104,37 +104,37 @@ def _html(content: _Content) -> str:
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td style="padding-right:12px;"><img src="cid:{_LOGO_CID}" width="44" height="44" alt="" style="display:block;border:0;border-radius:10px;"></td>
-                <td class="brand" style="font-family:{_FONT};font-size:24px;font-weight:700;color:#1b5a63;letter-spacing:-0.2px;">{_PRODUCT}</td>
+                <td class="brand" style="font-family:{_FONT};font-size:24px;font-weight:700;color:#1d6a4f;letter-spacing:-0.2px;">{_PRODUCT}</td>
               </tr>
             </table>
           </td>
         </tr>
         <tr>
           <td class="pad" style="padding:28px 40px 8px;font-family:{_FONT};">
-            <h1 class="text" style="margin:0 0 16px;font-size:26px;line-height:32px;font-weight:700;color:#16222a;">{escape(content.heading)}</h1>
+            <h1 class="text" style="margin:0 0 16px;font-size:26px;line-height:32px;font-weight:700;color:#14231d;">{escape(content.heading)}</h1>
             {_paragraphs_html(content.paragraphs)}
           </td>
         </tr>
         <tr>
           <td class="pad" style="padding:8px 40px 24px;font-family:{_FONT};">
-            <a class="button" href="{link}" style="display:inline-block;background-color:#1b5a63;color:#ffffff;font-size:16px;font-weight:700;line-height:20px;text-decoration:none;padding:14px 28px;border-radius:10px;">{escape(content.button)}</a>
+            <a class="button" href="{link}" style="display:inline-block;background-color:#1d6a4f;color:#ffffff;font-size:16px;font-weight:700;line-height:20px;text-decoration:none;padding:14px 28px;border-radius:10px;">{escape(content.button)}</a>
           </td>
         </tr>
         <tr>
           <td class="pad" style="padding:0 40px 28px;font-family:{_FONT};">
-            <p class="muted" style="margin:0 0 8px;font-size:14px;line-height:22px;color:#43515b;">{escape(content.fallback_hint)}</p>
-            <p class="linkbox" style="margin:0;padding:12px 14px;border-radius:8px;background-color:#eef1ee;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:13px;line-height:20px;color:#123f46;word-break:break-all;"><a href="{link}" style="color:#123f46;text-decoration:underline;">{link}</a></p>
+            <p class="muted" style="margin:0 0 8px;font-size:14px;line-height:22px;color:#44544b;">{escape(content.fallback_hint)}</p>
+            <p class="linkbox" style="margin:0;padding:12px 14px;border-radius:8px;background-color:#ecefe6;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:13px;line-height:20px;color:#0f3f2e;word-break:break-all;"><a href="{link}" style="color:#0f3f2e;text-decoration:underline;">{link}</a></p>
           </td>
         </tr>
         <tr>
           <td class="pad" style="padding:0 40px 32px;font-family:{_FONT};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr><td class="rule" style="border-top:1px solid #dfe5e2;padding-top:20px;">{notes}</td></tr>
+              <tr><td class="rule" style="border-top:1px solid #d9ddd2;padding-top:20px;">{notes}</td></tr>
             </table>
           </td>
         </tr>
       </table>
-      <p class="muted" style="margin:20px 0 0;font-family:{_FONT};font-size:12px;line-height:18px;color:#6a7881;">Цей лист надіслано автоматично, відповідати на нього не потрібно.<br>{_PRODUCT} · <a href="https://{_SITE}" style="color:#6a7881;">{_SITE}</a></p>
+      <p class="muted" style="margin:20px 0 0;font-family:{_FONT};font-size:12px;line-height:18px;color:#5f6e66;">Цей лист надіслано автоматично, відповідати на нього не потрібно.<br>{_PRODUCT} · <a href="https://{_SITE}" style="color:#5f6e66;">{_SITE}</a></p>
     </td>
   </tr>
 </table>

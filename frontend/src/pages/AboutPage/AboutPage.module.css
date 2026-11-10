@@ -1,0 +1,69 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
+.layout {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.text {
+  min-width: 0;
+  max-width: var(--content-width);
+}
+
+.lead {
+  font-size: var(--text-lg);
+}
+
+.section {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 0.0625rem solid var(--color-separator);
+}
+
+.section p {
+  margin: 0;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xl);
+}
+
+.aside {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+/* The photograph is decoration; on a narrow screen it is a short band above the button */
+.photo {
+  min-height: 11rem;
+  border-radius: var(--radius-xl);
+  background: var(--color-veil) url("/images/pool.jpg") 50% 50% / cover no-repeat;
+  box-shadow: var(--shadow-md);
+  filter: var(--photo-filter);
+}
+
+.action {
+  display: flex;
+}
+
+@media (min-width: 64rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    gap: var(--space-7);
+    align-items: start;
+  }
+
+  .aside {
+    position: sticky;
+    top: var(--space-6);
+  }
+
+  .photo {
+    min-height: 20rem;
+  }
+}

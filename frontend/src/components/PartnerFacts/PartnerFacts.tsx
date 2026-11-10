@@ -18,14 +18,12 @@ const text = uk.feed.card;
 /** Description list with the public profile fields of another user. */
 const PartnerFacts = ({ partner, version, children }: PartnerFactsProps) => (
   <dl className={styles.facts}>
-    <div>
-      <dt>{text.district}</dt>
-      <dd>
-        {partner.district_code
-          ? taxonomyLabel(version, "districts", partner.district_code)
-          : text.districtNone}
-      </dd>
-    </div>
+    {partner.district_code && (
+      <div>
+        <dt>{text.district}</dt>
+        <dd>{taxonomyLabel(version, "districts", partner.district_code)}</dd>
+      </div>
+    )}
     {children}
     <div>
       <dt>{text.intensity}</dt>

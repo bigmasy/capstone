@@ -267,6 +267,32 @@ describe("MatchesPage", () => {
       expect(screen.queryByRole("alert")).toBeNull();
     });
 
+    it("offers no filters where there is nobody to filter", async () => {
+      routeFetch(fetchMock, routes({ "GET /matches": () => jsonResponse(404, { detail: "no" }) }));
+      renderPage();
+      await screen.findByText(text.noProfile);
+      expect(screen.queryByLabelText(text.filters.radius)).toBeNull();
+      expect(screen.queryByText(text.lead)).toBeNull();
+    });
+
+    it("keeps the filters of an empty feed once one is set, so the person can undo it", async () => {
+      routeFetch(
+        fetchMock,
+        routes({
+          "GET /matches": (request) =>
+            new URL(request.url).searchParams.has("radius_km")
+              ? jsonResponse(200, makeFeed([]))
+              : jsonResponse(200, makeFeed([makeMatch()])),
+        }),
+      );
+      const user = userEvent.setup();
+      renderPage();
+      await user.selectOptions(await screen.findByLabelText(text.filters.radius), "5");
+
+      await screen.findByText(text.empty);
+      expect(screen.getByLabelText(text.filters.radius)).toHaveValue("5");
+    });
+
     it("shows an alert and retries on a server error", async () => {
       routeFetch(fetchMock, routes({ "GET /matches": () => jsonResponse(500, { detail: "boom" }) }));
       const user = userEvent.setup();

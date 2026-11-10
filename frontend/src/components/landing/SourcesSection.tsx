@@ -22,9 +22,10 @@ const renderItem = (item: NewsItem) => (
       <ExternalLink href={item.url}>{item.title}</ExternalLink>
     </h4>
     <p className={styles.source}>
-      {item.source}
-      <span aria-hidden="true"> · </span>
-      <time dateTime={item.published_at}>{formatDate(item.published_at)}</time>
+      <span>{item.source}</span>
+      <time className={styles.date} dateTime={item.published_at}>
+        {formatDate(item.published_at)}
+      </time>
     </p>
   </li>
 );
@@ -32,10 +33,14 @@ const renderItem = (item: NewsItem) => (
 /**
  * News about adaptive sport, collected from public feeds by a worker once a day and read
  * from the API here. It shows what was stored, never a list written into the page: a column
- * with nothing in it says so, and a failed request offers to try again.
+ * with nothing in it is left out, and a failed request offers to try again.
  */
 const SourcesSection = () => {
   const { data, isLoading, isError, refetch } = useGetNewsQuery();
+
+  // A column with nothing in it is not drawn, and a digest with nothing at all hides the section
+  const filled = data?.columns.filter((column) => column.items.length > 0) ?? [];
+  if (data && !isError && filled.length === 0) return null;
 
   let body;
   if (isLoading) {
@@ -52,17 +57,13 @@ const SourcesSection = () => {
   } else {
     body = (
       <div className={`grid grid-3 ${styles.columns}`}>
-        {data.columns.map((column) => (
+        {filled.map((column) => (
           <div className={`card ${styles.column}`} key={column.id}>
             <h3 className={styles.columnHeading}>
               <Icon name={columnIcons[column.id]} size={22} />
               <span>{text.columns[column.id]}</span>
             </h3>
-            {column.items.length > 0 ? (
-              <ul className={styles.items}>{column.items.map(renderItem)}</ul>
-            ) : (
-              <p className={styles.empty}>{text.empty}</p>
-            )}
+            <ul className={styles.items}>{column.items.map(renderItem)}</ul>
           </div>
         ))}
       </div>

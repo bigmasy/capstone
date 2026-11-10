@@ -1,3 +1,4 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
 /* On a narrow screen the list is a disclosure panel that the menu button of the header controls */
 .nav {
   display: none;
@@ -35,6 +36,10 @@
   color: var(--color-primary-hover);
 }
 
+.link:active {
+  background: var(--color-primary-soft);
+}
+
 /* The active page is marked by weight and an edge, not by colour alone */
 .link[aria-current="page"] {
   border-left-color: var(--color-primary);
@@ -68,19 +73,20 @@
   .link {
     padding: 0 var(--space-3);
     border-left: 0;
-    border-bottom: 0.1875rem solid transparent;
-    border-radius: 0;
+    border-radius: var(--radius-pill);
   }
 
   .link:hover {
-    background: transparent;
-    border-bottom-color: var(--color-separator);
+    background: var(--color-surface);
+  }
+
+  .link:active {
+    background: var(--color-primary-soft);
   }
 
   .link[aria-current="page"] {
-    background: transparent;
-    border-bottom-color: var(--color-primary);
-    color: var(--color-primary);
+    background: var(--color-primary-soft);
+    color: var(--color-on-primary-soft);
   }
 
   .cta,

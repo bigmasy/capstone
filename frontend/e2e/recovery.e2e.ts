@@ -69,6 +69,12 @@ test("a forgotten password is replaced through the e-mailed link", async ({
     await page.getByLabel(uk.auth.email).fill(account.email);
     await page.getByLabel(passwordLabel).fill(NEW_PASSWORD);
     await page.getByRole("button", { name: uk.auth.submitLogin }).click();
+    // After a whole suite the proxy may still hold this address in its sign-in budget: wait it out once
+    const limited = page.getByText(uk.auth.tooManyAttempts);
+    if (await limited.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await page.waitForTimeout(20_000);
+      await page.getByRole("button", { name: uk.auth.submitLogin }).click();
+    }
     await expect(page).not.toHaveURL(/\/login$/);
 
     // The link works once

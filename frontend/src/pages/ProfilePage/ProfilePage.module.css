@@ -1,3 +1,4 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
 .onboarding {
   max-width: 100%;
   margin-bottom: var(--space-4);
@@ -8,6 +9,7 @@
 
 .onboarding h2 {
   margin-top: 0;
+  text-wrap: balance;
 }
 
 .error {

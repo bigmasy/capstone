@@ -1,3 +1,4 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
 .panel {
   padding-block: var(--space-5);
 }
@@ -12,6 +13,7 @@
 .heading {
   margin-top: 0;
   font-size: var(--text-xl);
+  text-wrap: balance;
 }
 
 @media (min-width: 56rem) {

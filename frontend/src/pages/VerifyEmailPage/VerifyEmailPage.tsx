@@ -67,7 +67,7 @@ const VerifyEmailPage = () => {
   return (
     <>
       <h1>{text.title}</h1>
-      <div className={styles.result} role="status">
+      <div className={`card status-panel ${styles.result}`} role="status">
         {body}
       </div>
     </>

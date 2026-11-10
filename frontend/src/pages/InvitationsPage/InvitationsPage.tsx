@@ -129,16 +129,19 @@ const InvitationsPage = () => {
         idBase={idBase}
         panelId={panelId}
       />
-      <SelectField
-        label={text.statusFilter}
-        name="status"
-        placeholder={text.statusAll}
-        options={STATUSES.map((value) => ({ value, label: text.status[value] }))}
-        value={status ?? ""}
-        onChange={(event) =>
-          changeView(() => setStatus(STATUSES.find((value) => value === event.target.value)))
-        }
-      />
+      {/* With nothing sent or received there is nothing to sort by status; a set filter stays */}
+      {(status !== undefined || (shown !== undefined && (shown.items.length > 0 || page > 0))) && (
+        <SelectField
+          label={text.statusFilter}
+          name="status"
+          placeholder={text.statusAll}
+          options={STATUSES.map((value) => ({ value, label: text.status[value] }))}
+          value={status ?? ""}
+          onChange={(event) =>
+            changeView(() => setStatus(STATUSES.find((value) => value === event.target.value)))
+          }
+        />
+      )}
       {feedback && (
         <p
           className={feedback.kind === "error" ? styles.feedbackError : styles.feedback}

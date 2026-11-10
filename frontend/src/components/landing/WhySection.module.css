@@ -1,19 +1,25 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
 .layout {
   display: grid;
   gap: var(--space-5);
-  align-items: start;
+  align-items: stretch;
+}
+
+/* A photograph of a gym rack, decoration only; it carries no information */
+.photo {
+  min-height: 14rem;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface) url("/images/weights.jpg") 50% 50% / cover
+    no-repeat;
+  box-shadow: var(--shadow-md);
 }
 
 .story h3:first-child {
   margin-top: 0;
 }
 
-.approach {
-  border-left: 0.3125rem solid var(--color-accent);
-}
-
-.approach h3 {
-  margin-top: 0;
+.story h3 {
+  margin-top: var(--space-4);
 }
 
 .limits {
@@ -22,7 +28,11 @@
 
 @media (min-width: 56rem) {
   .layout {
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr);
     gap: var(--space-6);
+  }
+
+  .photo {
+    min-height: 100%;
   }
 }

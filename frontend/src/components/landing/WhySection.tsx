@@ -9,13 +9,12 @@ const text = uk.landing.why;
 const WhySection = () => (
   <Section heading={text.heading}>
     <div className={styles.layout}>
+      <div className={styles.photo} aria-hidden="true" />
       <div className={styles.story}>
         <h3>{text.problemHeading}</h3>
         <p>{text.problem}</p>
         <h3>{text.supportHeading}</h3>
         <p>{text.support}</p>
-      </div>
-      <div className={`card ${styles.approach}`}>
         <h3>{text.approachHeading}</h3>
         <p>{text.approach}</p>
         <p className={styles.limits}>{text.limits}</p>

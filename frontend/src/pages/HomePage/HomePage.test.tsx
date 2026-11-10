@@ -143,16 +143,18 @@ describe("HomePage (landing)", () => {
       expect(within(column).getByText(/9 листопада 2026/)).toBeInTheDocument();
     });
 
-    it("says so in a column that has nothing yet", async () => {
+    it("leaves out a column that has nothing yet", async () => {
       renderWithProviders(<HomePage />);
 
       await screen.findByText("Meet in Brescia");
 
-      const column = within(sources())
-        .getByRole("heading", { level: 3, name: uk.landing.sources.columns.veterans })
-        .parentElement as HTMLElement;
-      expect(within(column).getByText(uk.landing.sources.empty)).toBeInTheDocument();
-      expect(within(column).queryByRole("link")).toBeNull();
+      expect(
+        within(sources()).queryByRole("heading", {
+          level: 3,
+          name: uk.landing.sources.columns.veterans,
+        }),
+      ).toBeNull();
+      expect(within(sources()).queryByText(uk.landing.sources.empty)).toBeNull();
     });
 
     it("carries the disclaimer and no date on which anything was checked or updated", async () => {
