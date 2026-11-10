@@ -19,8 +19,20 @@
 #                       certificate, the HTTP redirect and the default CORS origin
 #   PUBLIC_HSTS         Strict-Transport-Security value, empty by default; set it only with a
 #                       real certificate, for example "max-age=31536000"
+#   TRUSTED_PROXY       address of a TLS-terminating balancer in front of the proxy (for example
+#                       Caddy on the host); its X-Forwarded-For becomes the client address. With a
+#                       published port on 127.0.0.1 that is the gateway of EDGE_SUBNET, such as
+#                       172.29.250.1. Default 127.0.0.1, which matches no real client
 #   CORS_ORIGINS        JSON list of allowed origins (default: the HTTPS origin of the proxy)
 #   SEED_COUNT          number of demo accounts (default 200)
+#   NEWS_REFRESH_HOURS  hours between two collections of the news digest (default 24)
+#   MAIL_BACKEND        "log" (default: the confirmation and reset links go to the api log) or "smtp"
+#   MAIL_FROM, SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_STARTTLS,
+#   SMTP_IMPLICIT_TLS   the mail server for MAIL_BACKEND=smtp (port 587 with STARTTLS by default,
+#                       or 465 with SMTP_IMPLICIT_TLS=true)
+#   PUBLIC_BASE_URL     address of the site as written in the e-mailed link, without a trailing
+#                       slash (default https://PUBLIC_HOSTNAME:HTTPS_PORT; set it when the site
+#                       is reached on the default port 443)
 #   POSTGRES_DB, LOG_LEVEL, EDGE_SUBNET, PROXY_IP, BACKEND_IMAGE, FRONTEND_IMAGE, PROXY_IMAGE,
 #   CERTS_IMAGE
 #
@@ -53,6 +65,17 @@ x-backend: &backend
     # uvicorn reads this variable as --forwarded-allow-ips: only the proxy may set the client
     # address and scheme through X-Forwarded-For and X-Forwarded-Proto.
     FORWARDED_ALLOW_IPS: ${PROXY_IP:-172.29.250.10}
+    # Confirmation of e-mail addresses. Without a mail server the message is written to the
+    # log of the api service (MAIL_BACKEND=log); with SMTP_HOST set, use MAIL_BACKEND=smtp.
+    MAIL_BACKEND: ${MAIL_BACKEND:-log}
+    MAIL_FROM: ${MAIL_FROM:-Poruch <no-reply@localhost>}
+    SMTP_HOST: ${SMTP_HOST:-}
+    SMTP_PORT: ${SMTP_PORT:-587}
+    SMTP_USERNAME: ${SMTP_USERNAME:-}
+    SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+    SMTP_IMPLICIT_TLS: ${SMTP_IMPLICIT_TLS:-false}
+    PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://${PUBLIC_HOSTNAME:-localhost}:${HTTPS_PORT:-8443}}
   <<: *hardening
 
 services:
@@ -149,6 +172,28 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # Collects the news digest of the landing page from the public feeds of a fixed list of
+  # publishers, once a day (NEWS_REFRESH_HOURS). A separate process, so that a visitor never
+  # waits for another site: the API only reads what was stored. It needs the database and the
+  # internet (the edge network) and nothing else.
+  news:
+    <<: *backend
+    environment:
+      <<: *backend-env
+      DB_URL: postgresql+asyncpg://adaptive_api:${DB_API_PASSWORD:?DB_API_PASSWORD must be set}@db:5432/${POSTGRES_DB:-adaptive_sport}
+      NEWS_REFRESH_HOURS: ${NEWS_REFRESH_HOURS:-24}
+    command: ["python", "-m", "app.tools.news_worker"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - internal
+      - edge
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   # Demo accounts from the synthetic generator (profile "demo"). The explicit profile is the
   # opt-in that --force-demo stands for, because the API runs with ENV=prod.
   seed:
@@ -207,6 +252,7 @@ services:
       PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-localhost}
       PUBLIC_HTTPS_PORT: ${HTTPS_PORT:-8443}
       PUBLIC_HSTS: ${PUBLIC_HSTS:-}
+      PUBLIC_TRUSTED_PROXY: ${TRUSTED_PROXY:-127.0.0.1}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8080}:8080"
       - "${BIND_ADDRESS:-127.0.0.1}:${HTTPS_PORT:-8443}:8443"
