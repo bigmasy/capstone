@@ -14,6 +14,7 @@ from app.domain.privacy import GridCell
 from app.domain.profile import FunctionalProfile, ProfileView, SportEntry
 from app.repository import private_layer
 from app.repository.users import as_utc
+from app.repository.visibility import discoverable
 
 
 def _sports(row: Profile) -> tuple[SportEntry, ...]:
@@ -92,7 +93,7 @@ class ProfileRepository:
         :param profile_id: Identifier of the profile.
         :return: The public view, or None if the profile is missing or hidden.
         """
-        row = await self._load(Profile.id == profile_id, Profile.is_visible.is_(True))
+        row = await self._load(Profile.id == profile_id, discoverable())
         if row is None:
             return None
         return PublicProfile(
@@ -113,7 +114,7 @@ class ProfileRepository:
         :return: The owner's user identifier, or None if the profile is missing or hidden.
         """
         result = await self.db.execute(
-            select(Profile.user_id).where(Profile.id == profile_id, Profile.is_visible.is_(True))
+            select(Profile.user_id).where(Profile.id == profile_id, discoverable())
         )
         return result.scalar_one_or_none()
 

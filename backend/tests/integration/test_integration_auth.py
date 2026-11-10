@@ -15,7 +15,8 @@ async def test_register_returns_the_account_without_secrets(client: httpx.AsyncC
 
     assert response.status_code == 201
     body = response.json()
-    assert set(body) == {"id", "email", "created_at"}
+    assert set(body) == {"id", "email", "created_at", "email_verified"}
+    assert body["email_verified"] is False
     assert body["email"] == "orest@example.org"
     assert PASSWORD not in response.text
     assert "argon2" not in response.text

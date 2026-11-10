@@ -93,3 +93,17 @@ def test_account_repr_hides_personal_data():
     )
 
     assert "secret" not in repr(account)
+
+
+async def test_a_new_account_is_unconfirmed_until_marked(users: UserRepository):
+    from datetime import UTC, datetime
+
+    account = await users.create_user("a@example.org", "hash")
+
+    assert not account.is_verified
+    assert await users.is_email_verified(account.id) is False
+
+    assert await users.mark_email_verified(account.id, datetime(2026, 11, 9, tzinfo=UTC)) is True
+
+    assert await users.is_email_verified(account.id) is True
+    assert await users.mark_email_verified(uuid4(), datetime(2026, 11, 9, tzinfo=UTC)) is False

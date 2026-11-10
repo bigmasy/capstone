@@ -25,12 +25,16 @@ from app.domain.errors import (
     NotFoundError,
 )
 from app.domain.invitations import ContactRequiredError
+from app.domain.password_reset import InvalidResetError
+from app.domain.verification import EmailNotVerifiedError, InvalidVerificationError
 
 _STATUS_BY_ERROR: dict[type[DomainError], int] = {
     AuthenticationError: status.HTTP_401_UNAUTHORIZED,
     AccessDeniedError: status.HTTP_403_FORBIDDEN,
     NotFoundError: status.HTTP_404_NOT_FOUND,
     ConflictError: status.HTTP_409_CONFLICT,
+    InvalidVerificationError: status.HTTP_400_BAD_REQUEST,
+    InvalidResetError: status.HTTP_400_BAD_REQUEST,
 }
 
 # Fixed text per pydantic error type. The message pydantic produces can quote the input (UUID
@@ -216,6 +220,22 @@ async def contact_required_handler(request: Request, exc: Exception) -> JSONResp
     )
 
 
+async def email_not_verified_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Answer 403 with the usual body plus a stable machine code.
+
+    The client switches on ``code`` to ask the person to confirm the address.
+
+    :param request: Failing request (unused).
+    :param exc: An :class:`EmailNotVerifiedError`.
+    :return: JSON response with status 403 and ``{"detail": ..., "code": "email_not_verified"}``.
+    """
+    if not isinstance(exc, EmailNotVerifiedError):
+        return await domain_error_handler(request, exc)
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN, content={"detail": exc.message, "code": exc.code}
+    )
+
+
 async def location_required_handler(request: Request, exc: Exception) -> JSONResponse:
     """Answer a profile save that has no location to store with a 422 in the validation shape.
 
@@ -267,3 +287,4 @@ def register_exception_handlers(app: FastAPI) -> None:
         app.add_exception_handler(error_type, domain_error_handler)
     app.add_exception_handler(LocationRequiredError, location_required_handler)
     app.add_exception_handler(ContactRequiredError, contact_required_handler)
+    app.add_exception_handler(EmailNotVerifiedError, email_not_verified_handler)

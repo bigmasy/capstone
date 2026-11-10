@@ -24,6 +24,12 @@ class ContactRequiredResponse(ErrorResponse):
     code: Literal["contact_required"]
 
 
+class EmailNotVerifiedResponse(ErrorResponse):
+    """Body of the 403 that asks the caller to confirm the e-mail address first."""
+
+    code: Literal["email_not_verified"]
+
+
 class InvitationCreate(BaseModel):
     """Body of ``POST /invitations``."""
 

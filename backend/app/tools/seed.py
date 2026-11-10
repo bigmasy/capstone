@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 from app.composition import build_auth_service, build_profile_service
 from app.conf.config import Settings, get_settings
+from app.core.mail import LogMailSender
 from app.database.db import DatabaseSessionManager
 from app.domain.account import ProfileDraft, password_meets_policy
 from app.domain.errors import ConflictError
@@ -109,14 +110,14 @@ async def seed_demo(
     for index, profile in enumerate(generate_profiles(params, seed)):
         email = demo_email(index)
         async with manager.session() as session:
-            auth = build_auth_service(session, settings)
+            auth = build_auth_service(session, settings, LogMailSender())
             profiles = build_profile_service(session)
             account = await auth.users.get_user_by_email(email)
             if account is not None:
                 skipped += 1
             else:
                 try:
-                    account = await auth.register(email, password)
+                    account = await auth.register_confirmed(email, password)
                 except ConflictError:
                     # A concurrent run created it between the lookup and the insert.
                     skipped += 1

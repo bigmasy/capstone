@@ -16,7 +16,16 @@ from app.conf.config import get_settings
 from app.database.models import Base
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
-TABLES = {"users", "profiles", "profile_sports", "functional_capabilities", "invitations"}
+TABLES = {
+    "users",
+    "profiles",
+    "profile_sports",
+    "functional_capabilities",
+    "invitations",
+    "email_verifications",
+    "news_items",
+    "password_resets",
+}
 
 
 def alembic_config(monkeypatch: pytest.MonkeyPatch, url: str) -> Config:
@@ -49,9 +58,12 @@ def constraint_names(engine: Engine) -> dict[str, set[str]]:
 def test_revision_ids_form_one_chain():
     script = ScriptDirectory(str(BACKEND_DIR / "migrations"))
 
-    assert script.get_heads() == ["0006_drop_invitation_message"]
+    assert script.get_heads() == ["0009_password_reset"]
     chain = [rev.revision for rev in script.walk_revisions()]
     assert chain == [
+        "0009_password_reset",
+        "0008_news_items",
+        "0007_email_verification",
         "0006_drop_invitation_message",
         "0005_invitations",
         "0004_geography",
@@ -224,3 +236,84 @@ def test_postgis_upgrade_adds_generated_geography_column(monkeypatch: pytest.Mon
     command.check(config)
     command.downgrade(config, "0001_baseline")
     command.upgrade(config, "head")
+
+
+def test_verification_revision_keeps_existing_accounts_confirmed_and_downgrades(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    url = f"sqlite+aiosqlite:///{tmp_path / 'verification.db'}"
+    config = alembic_config(monkeypatch, url)
+    engine = create_engine(url.replace("+aiosqlite", ""))
+
+    command.upgrade(config, "0006_drop_invitation_message")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO users (id, email, password_hash, created_at) VALUES "
+                "('00000000000000000000000000000001', 'a@example.org', 'x', '2030-01-01 00:00:00')"
+            )
+        )
+
+    command.upgrade(config, "0007_email_verification")
+
+    inspector = inspect(engine)
+    assert "email_verifications" in inspector.get_table_names()
+    columns = {c["name"]: c for c in inspector.get_columns("users")}
+    assert columns["email_verified_at"]["nullable"]
+    with engine.connect() as connection:
+        # An account that predates the rule keeps working: it counts as confirmed from creation
+        stamp = connection.execute(text("SELECT email_verified_at FROM users")).scalar_one()
+    assert str(stamp).startswith("2030-01-01")
+    assert {i["name"] for i in inspector.get_indexes("email_verifications")} >= {
+        "ix_email_verifications_user_id"
+    }
+
+    command.downgrade(config, "0006_drop_invitation_message")
+
+    assert "email_verifications" not in inspect(engine).get_table_names()
+    assert "email_verified_at" not in {c["name"] for c in inspect(engine).get_columns("users")}
+
+
+def test_news_revision_creates_the_table_and_downgrades(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    url = f"sqlite+aiosqlite:///{tmp_path / 'news.db'}"
+    config = alembic_config(monkeypatch, url)
+    engine = create_engine(url.replace("+aiosqlite", ""))
+
+    command.upgrade(config, "0008_news_items")
+
+    inspector = inspect(engine)
+    assert "news_items" in inspector.get_table_names()
+    unique = {tuple(u["column_names"]) for u in inspector.get_unique_constraints("news_items")}
+    assert ("url",) in unique
+    assert "ix_news_items_published_at" in {i["name"] for i in inspector.get_indexes("news_items")}
+
+    command.downgrade(config, "0007_email_verification")
+
+    assert "news_items" not in inspect(engine).get_table_names()
+
+
+def test_password_reset_revision_creates_the_table_and_downgrades(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    url = f"sqlite+aiosqlite:///{tmp_path / 'reset.db'}"
+    config = alembic_config(monkeypatch, url)
+    engine = create_engine(url.replace("+aiosqlite", ""))
+
+    command.upgrade(config, "0009_password_reset")
+
+    inspector = inspect(engine)
+    assert "password_resets" in inspector.get_table_names()
+    columns = {c["name"]: c for c in inspector.get_columns("users")}
+    assert columns["password_changed_at"]["nullable"]
+    unique = {tuple(u["column_names"]) for u in inspector.get_unique_constraints("password_resets")}
+    assert ("token_hash",) in unique
+    assert "ix_password_resets_user_id" in {
+        i["name"] for i in inspector.get_indexes("password_resets")
+    }
+
+    command.downgrade(config, "0008_news_items")
+
+    assert "password_resets" not in inspect(engine).get_table_names()
+    assert "password_changed_at" not in {c["name"] for c in inspect(engine).get_columns("users")}

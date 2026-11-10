@@ -44,7 +44,9 @@ def invitations(session: AsyncSession) -> InvitationRepository:
 
 async def make_user(session: AsyncSession, contact: str | None = None, **overrides: object) -> UUID:
     """Create a user with a profile; the profile holds the contact, if any."""
-    account = await UserRepository(session).create_user(f"{uuid4().hex}@example.org", "hash")
+    account = await UserRepository(session).create_user(
+        f"{uuid4().hex}@example.org", "hash", verified_at=datetime.now(UTC)
+    )
     values: dict[str, object] = {
         "display_name": "Orest",
         "district": DistrictCode.KYIV_PODILSKYI,

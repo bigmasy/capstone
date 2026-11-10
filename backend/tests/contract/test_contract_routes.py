@@ -9,8 +9,16 @@ PUBLIC_ROUTES = {
     ("GET", "/health"),
     ("GET", "/ready"),
     ("GET", "/api/v1/taxonomy"),
+    # Links to public articles, shown to every visitor of the landing page
+    ("GET", "/api/v1/news"),
     ("POST", "/api/v1/auth/register"),
     ("POST", "/api/v1/auth/login"),
+    # Opened from a mailbox, possibly on another device, so it takes no bearer token
+    ("POST", "/api/v1/auth/verify-email"),
+    # The person forgot the password, so there is no session; both answer without telling
+    # whether the address exists
+    ("POST", "/api/v1/auth/forgot-password"),
+    ("POST", "/api/v1/auth/reset-password"),
 }
 
 
@@ -51,7 +59,12 @@ def test_documentation_and_schema_are_off_in_production():
     from app.main import create_app
 
     prod = create_app(
-        make_settings(ENV="prod", JWT_SECRET="p" * 40, DB_URL="postgresql+asyncpg://u:p@db/app")
+        make_settings(
+            ENV="prod",
+            JWT_SECRET="p" * 40,
+            DB_URL="postgresql+asyncpg://u:p@db/app",
+            MAIL_BACKEND="log",
+        )
     )
 
     assert prod.docs_url is None

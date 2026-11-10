@@ -24,7 +24,8 @@ INVITATION_OPERATIONS = {
     ("post", "/api/v1/invitations/{invitation_id}/cancel"),
 }
 # Static code lists: no person's data, checked by a separate test below.
-REFERENCE_OPERATIONS = {("get", "/api/v1/taxonomy")}
+# Public reference data that holds no profile data at all: the code lists and the news digest
+REFERENCE_OPERATIONS = {("get", "/api/v1/taxonomy"), ("get", "/api/v1/news")}
 
 # Every property name that a response of any other route may contain.
 ALLOWED_PROPERTIES = {
@@ -294,6 +295,20 @@ def test_taxonomy_holds_code_lists_only(spec: dict[str, Any]):
 
     assert names <= TAXONOMY_ALLOWED
     assert not {"name", "label", "description", "email", "latitude"} & names
+
+
+def test_news_digest_holds_links_titles_and_names_only(spec: dict[str, Any]):
+    operation = spec["paths"]["/api/v1/news"]["get"]
+
+    names = response_properties(spec, operation, errors_only=False)
+
+    assert {"columns", "id", "items", "title", "url", "source", "published_at"} >= names - {
+        "detail",
+        "loc",
+        "msg",
+        "type",
+    }
+    assert not {"email", "contact", "latitude", "user_id", "token"} & names
 
 
 def test_request_schemas_of_the_profile_route_forbid_extra_properties(spec: dict[str, Any]):

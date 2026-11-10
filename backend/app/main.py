@@ -6,11 +6,12 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, invitations, matches, profiles, taxonomy, utils
+from app.api import auth, invitations, matches, news, profiles, taxonomy, utils
 from app.api.handlers import register_exception_handlers
 from app.composition import build_ranker
 from app.conf.config import Settings, get_settings
 from app.core.logging import configure_logging, install_access_log
+from app.core.mail import build_mail_sender
 from app.database.db import DatabaseSessionManager
 
 API_PREFIX = "/api/v1"
@@ -22,6 +23,7 @@ V1_ROUTERS: list[APIRouter] = [
     profiles.router,
     invitations.router,
     matches.router,
+    news.router,
     taxonomy.router,
 ]
 
@@ -65,6 +67,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     # One scorer per process: loading a model is slow and the scorer is read-only
     app.state.scorer = build_ranker(settings)
+    # One mail sender per process, so that the tests can read what was sent
+    app.state.mailer = build_mail_sender(settings)
 
     # Explicit origins and no credentials: the token travels in the Authorization header,
     # not in a cookie, so cross-site requests cannot ride on ambient credentials.

@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import BackgroundTasks, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.composition import (
@@ -10,9 +10,11 @@ from app.composition import (
     build_health_service,
     build_invitation_service,
     build_matching_service,
+    build_news_service,
     build_profile_service,
 )
 from app.conf.config import Settings
+from app.core.mail import MailSender
 from app.database.db import DbSession
 from app.domain.account import Account
 from app.domain.errors import AuthenticationError
@@ -21,6 +23,7 @@ from app.services.auth import AuthService
 from app.services.health import HealthService
 from app.services.invitations import InvitationService
 from app.services.matching import MatchingService
+from app.services.news import NewsService
 from app.services.profiles import ProfileService
 
 # auto_error is off so a missing header raises the domain AuthenticationError and is answered
@@ -42,14 +45,31 @@ def get_app_settings(request: Request) -> Settings:
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 
 
-def get_auth_service(db: DbSession, settings: SettingsDep) -> AuthService:
+def get_mail_sender(request: Request) -> MailSender:
+    """Return the mail sender the running application was built with.
+
+    :param request: Current request.
+    :return: The process-wide sender stored by ``create_app``.
+    """
+    mailer: MailSender = request.app.state.mailer
+    return mailer
+
+
+MailDep = Annotated[MailSender, Depends(get_mail_sender)]
+
+
+def get_auth_service(
+    db: DbSession, settings: SettingsDep, mail: MailDep, background: BackgroundTasks
+) -> AuthService:
     """Build the authentication service for one request.
 
     :param db: Database session of the request.
     :param settings: Application settings.
+    :param mail: The process-wide mail sender.
+    :param background: Work that runs after the response has been sent.
     :return: The service.
     """
-    return build_auth_service(db, settings)
+    return build_auth_service(db, settings, mail, background.add_task)
 
 
 def get_profile_service(db: DbSession) -> ProfileService:
@@ -106,7 +126,17 @@ def get_matching_service(
     return build_matching_service(db, settings, scorer)
 
 
+def get_news_service(db: DbSession) -> NewsService:
+    """Build the news service for one request.
+
+    :param db: Database session of the request.
+    :return: The service.
+    """
+    return build_news_service(db)
+
+
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+NewsServiceDep = Annotated[NewsService, Depends(get_news_service)]
 ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
 InvitationServiceDep = Annotated[InvitationService, Depends(get_invitation_service)]
 HealthServiceDep = Annotated[HealthService, Depends(get_health_service)]

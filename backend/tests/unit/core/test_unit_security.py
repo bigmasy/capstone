@@ -162,3 +162,21 @@ def test_error_message_does_not_reveal_the_reason(codec: TokenCodec):
         messages.add(caught.value.message)
 
     assert len(messages) == 1
+
+
+def test_decode_with_issue_time_returns_the_subject_and_whole_seconds():
+    codec = TokenCodec(make_settings())
+    now = datetime.now(UTC).replace(microsecond=0) - timedelta(seconds=30)
+    user_id = uuid4()
+
+    subject, issued = codec.decode_with_issue_time(codec.issue(user_id, now=now))
+
+    assert subject == user_id
+    assert issued == now
+
+
+def test_decode_with_issue_time_rejects_a_forged_token():
+    codec = TokenCodec(make_settings())
+
+    with pytest.raises(AuthenticationError):
+        codec.decode_with_issue_time("not.a.token")

@@ -1,5 +1,6 @@
 """In-memory stand-ins for the repositories; they record what reaches the storage layer."""
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -18,7 +19,9 @@ class FakeUserRepository:
     async def get_user_by_email(self, email: str) -> Account | None:
         return next((a for a in self.accounts.values() if a.email == email.lower()), None)
 
-    async def create_user(self, email: str, password_hash: str) -> Account:
+    async def create_user(
+        self, email: str, password_hash: str, verified_at: datetime | None = None
+    ) -> Account:
         if await self.get_user_by_email(email):
             raise ConflictError("Registration could not be completed")
         account = Account(
@@ -26,14 +29,27 @@ class FakeUserRepository:
             email=email.lower(),
             password_hash=password_hash,
             created_at=datetime.now(UTC),
+            email_verified_at=verified_at,
         )
         self.accounts[account.id] = account
         return account
 
     async def update_password_hash(self, user_id: UUID, password_hash: str) -> None:
-        old = self.accounts[user_id]
-        self.accounts[user_id] = Account(
-            id=old.id, email=old.email, password_hash=password_hash, created_at=old.created_at
+        self.accounts[user_id] = replace(self.accounts[user_id], password_hash=password_hash)
+
+    async def is_email_verified(self, user_id: UUID) -> bool:
+        account = self.accounts.get(user_id)
+        return account is not None and account.is_verified
+
+    async def mark_email_verified(self, user_id: UUID, now: datetime) -> bool:
+        if user_id not in self.accounts:
+            return False
+        self.accounts[user_id] = replace(self.accounts[user_id], email_verified_at=now)
+        return True
+
+    async def set_password(self, user_id: UUID, password_hash: str, now: datetime) -> None:
+        self.accounts[user_id] = replace(
+            self.accounts[user_id], password_hash=password_hash, password_changed_at=now
         )
 
     async def remove_user(self, user_id: UUID) -> bool:
@@ -84,3 +100,58 @@ class FakeProfileRepository:
 
     async def remove_profile(self, user_id: UUID) -> bool:
         return self.by_user.pop(user_id, None) is not None
+
+
+class FakeVerificationRepository:
+    """Keeps token digests in memory and verifies accounts through the fake user repository."""
+
+    def __init__(self, users: FakeUserRepository) -> None:
+        self.users = users
+        # digest -> [user id, created, expires, used]
+        self.tokens: dict[str, list] = {}
+
+    async def issue(
+        self, user_id: UUID, token_hash: str, created_at: datetime, expires_at: datetime
+    ) -> None:
+        self.tokens = {h: t for h, t in self.tokens.items() if t[0] != user_id}
+        self.tokens[token_hash] = [user_id, created_at, expires_at, None]
+
+    async def latest_issue_time(self, user_id: UUID) -> datetime | None:
+        times = [t[1] for t in self.tokens.values() if t[0] == user_id]
+        return max(times) if times else None
+
+    async def consume(self, token_hash: str, now: datetime) -> UUID | None:
+        record = self.tokens.get(token_hash)
+        if record is None or record[3] is not None or record[2] <= now:
+            return None
+        record[3] = now
+        await self.users.mark_email_verified(record[0], now)
+        return record[0]
+
+
+class FakeResetRepository:
+    """Keeps reset-token digests in memory and changes the password through the fake users."""
+
+    def __init__(self, users: FakeUserRepository) -> None:
+        self.users = users
+        # digest -> [user id, created, expires, used]
+        self.tokens: dict[str, list] = {}
+
+    async def issue(
+        self, user_id: UUID, token_hash: str, created_at: datetime, expires_at: datetime
+    ) -> None:
+        self.tokens = {h: t for h, t in self.tokens.items() if t[0] != user_id}
+        self.tokens[token_hash] = [user_id, created_at, expires_at, None]
+
+    async def latest_issue_time(self, user_id: UUID) -> datetime | None:
+        times = [t[1] for t in self.tokens.values() if t[0] == user_id]
+        return max(times) if times else None
+
+    async def consume(self, token_hash: str, now: datetime, password_hash: str) -> UUID | None:
+        record = self.tokens.get(token_hash)
+        if record is None or record[3] is not None or record[2] <= now:
+            return None
+        record[3] = now
+        await self.users.set_password(record[0], password_hash, now)
+        await self.users.mark_email_verified(record[0], now)
+        return record[0]

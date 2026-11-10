@@ -57,12 +57,22 @@ class Account:
     :param email: Lower-cased e-mail address.
     :param password_hash: Argon2id hash of the password.
     :param created_at: Registration time (UTC).
+    :param email_verified_at: When the owner confirmed the address, or None while unconfirmed.
+    :param password_changed_at: When the password was last reset by e-mail, or None if never;
+        access tokens issued before this moment are no longer accepted.
     """
 
     id: UUID
     email: str = field(repr=False)
     password_hash: str = field(repr=False)
     created_at: datetime
+    email_verified_at: datetime | None = None
+    password_changed_at: datetime | None = None
+
+    @property
+    def is_verified(self) -> bool:
+        """Whether the e-mail address is confirmed; only such accounts take part in matching."""
+        return self.email_verified_at is not None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

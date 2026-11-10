@@ -117,6 +117,15 @@ class TokenCodec:
             another audience or issuer, lacks a required claim, or has no UUID subject.
         :return: The user identifier.
         """
+        return self.decode_with_issue_time(token)[0]
+
+    def decode_with_issue_time(self, token: str) -> tuple[UUID, datetime]:
+        """Validate a token and return its subject together with the time it was issued.
+
+        :param token: Encoded JWT.
+        :raises AuthenticationError: As for :meth:`decode`.
+        :return: The user identifier and the issue time (UTC, whole seconds).
+        """
         try:
             claims = jwt.decode(
                 token,
@@ -126,6 +135,6 @@ class TokenCodec:
                 issuer=self._issuer,
                 options={"require": _REQUIRED_CLAIMS},
             )
-            return UUID(str(claims["sub"]))
-        except (jwt.PyJWTError, ValueError) as exc:
+            return UUID(str(claims["sub"])), datetime.fromtimestamp(int(claims["iat"]), UTC)
+        except (jwt.PyJWTError, ValueError, TypeError, OverflowError, OSError) as exc:
             raise AuthenticationError(_INVALID_TOKEN) from exc

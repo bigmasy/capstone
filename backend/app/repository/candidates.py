@@ -25,6 +25,7 @@ from app.domain.matching.source import CandidateProfile, CandidateSource
 from app.domain.privacy import EARTH_RADIUS_KM, GridCell, haversine_km
 from app.domain.profile import FunctionalProfile, ProfileView, SportEntry
 from app.repository import private_layer
+from app.repository.visibility import discoverable
 
 POSTGRESQL = "postgresql"
 _METRES_PER_KM = 1000.0
@@ -38,14 +39,14 @@ def _sports(row: Profile) -> frozenset[SportEntry]:
 
 
 def _eligible(viewer: ProfileView) -> Select[tuple[Profile]]:
-    """Statement for visible profiles other than the viewer that share a sport with them."""
+    """Statement for discoverable profiles other than the viewer that share a sport with them."""
     shares_a_sport = exists().where(
         ProfileSport.profile_id == Profile.id,
         ProfileSport.sport.in_(sorted(viewer.sport_codes)),
     )
     return (
         select(Profile)
-        .where(Profile.is_visible.is_(True), Profile.id != viewer.id, shares_a_sport)
+        .where(discoverable(), Profile.id != viewer.id, shares_a_sport)
         .options(selectinload(Profile.sports))
         .execution_options(populate_existing=True)
     )

@@ -44,9 +44,12 @@ async def add_profile(
     capabilities: tuple[CapabilityEntry, ...] = (),
     consent: bool = True,
     name: str = "Orest",
+    confirmed: bool = True,
 ) -> ProfileView:
     """Store a profile and return the snapshot matching would build for its owner."""
-    user = await UserRepository(session).create_user(f"{uuid4().hex}@example.org", "hash")
+    user = await UserRepository(session).create_user(
+        f"{uuid4().hex}@example.org", "hash", verified_at=NOW if confirmed else None
+    )
     repository = ProfileRepository(session)
     await repository.replace_profile(
         user.id,
@@ -188,3 +191,13 @@ async def test_the_portable_source_agrees_with_the_domain_rules(session: AsyncSe
 
 async def test_sqlite_gets_the_portable_source(session: AsyncSession):
     assert isinstance(build_candidate_source(session), HaversineCandidateSource)
+
+
+async def test_a_profile_of_an_unconfirmed_account_is_not_a_candidate(session: AsyncSession):
+    viewer = await add_profile(session)
+    confirmed = await add_profile(session, name="Confirmed")
+    await add_profile(session, name="Unconfirmed", confirmed=False)
+
+    found = await HaversineCandidateSource(session).search_candidates(viewer, 100.0, 10)
+
+    assert ids(found) == [confirmed.id]

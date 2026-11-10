@@ -28,6 +28,10 @@ def _to_account(row: User) -> Account:
         email=row.email,
         password_hash=row.password_hash,
         created_at=as_utc(row.created_at),
+        email_verified_at=None if row.email_verified_at is None else as_utc(row.email_verified_at),
+        password_changed_at=(
+            None if row.password_changed_at is None else as_utc(row.password_changed_at)
+        ),
     )
 
 
@@ -60,15 +64,21 @@ class UserRepository:
         row = result.scalar_one_or_none()
         return None if row is None else _to_account(row)
 
-    async def create_user(self, email: str, password_hash: str) -> Account:
+    async def create_user(
+        self, email: str, password_hash: str, verified_at: datetime | None = None
+    ) -> Account:
         """Create an account; the e-mail is stored lower-cased.
 
         :param email: E-mail address.
         :param password_hash: Argon2id hash of the password.
+        :param verified_at: Confirmation time for an account that needs no e-mail check (the
+            demo accounts); None for a normal registration.
         :raises ConflictError: If the e-mail is already registered.
         :return: The new account.
         """
-        row = User(email=email.strip().lower(), password_hash=password_hash)
+        row = User(
+            email=email.strip().lower(), password_hash=password_hash, email_verified_at=verified_at
+        )
         self.db.add(row)
         try:
             await self.db.commit()
@@ -77,6 +87,31 @@ class UserRepository:
             raise ConflictError(_CONFLICT_MESSAGE) from exc
         await self.db.refresh(row)
         return _to_account(row)
+
+    async def is_email_verified(self, user_id: UUID) -> bool:
+        """Tell whether an account has confirmed its e-mail address.
+
+        :param user_id: Identifier of the user.
+        :return: True only for an existing, confirmed account.
+        """
+        result = await self.db.execute(select(User.email_verified_at).where(User.id == user_id))
+        return result.scalar_one_or_none() is not None
+
+    async def mark_email_verified(self, user_id: UUID, now: datetime) -> bool:
+        """Confirm an account without a token (an administrator's decision).
+
+        :param user_id: Identifier of the user.
+        :param now: Confirmation time.
+        :return: True if the account exists.
+        """
+        await self.db.execute(
+            update(User)
+            .where(User.id == user_id, User.email_verified_at.is_(None))
+            .values(email_verified_at=now)
+        )
+        await self.db.commit()
+        found = await self.db.execute(select(User.id).where(User.id == user_id))
+        return found.scalar_one_or_none() is not None
 
     async def update_password_hash(self, user_id: UUID, password_hash: str) -> None:
         """Replace the stored hash, used when the hashing parameters were strengthened.

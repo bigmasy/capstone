@@ -5,8 +5,9 @@ import pytest
 
 from app.domain.errors import AccessDeniedError, ConflictError, NotFoundError
 from app.domain.invitations import CONTACT_REQUIRED_MESSAGE, ContactRequiredError, Direction, Status
+from app.domain.verification import EmailNotVerifiedError
 from app.services.invitations import InvitationService
-from tests.unit.services.fakes_invitations import FakeInvitations, FakeProfiles
+from tests.unit.services.fakes_invitations import FakeInvitations, FakeProfiles, FakeUsers
 
 T0 = datetime(2026, 11, 4, 12, 0, tzinfo=UTC)
 TTL_DAYS = 14
@@ -36,10 +37,15 @@ def profiles() -> FakeProfiles:
 
 
 @pytest.fixture
+def users() -> FakeUsers:
+    return FakeUsers()
+
+
+@pytest.fixture
 def service(
-    invitations: FakeInvitations, profiles: FakeProfiles, clock: Clock
+    invitations: FakeInvitations, profiles: FakeProfiles, users: FakeUsers, clock: Clock
 ) -> InvitationService:
-    return InvitationService(invitations, profiles, TTL_DAYS, clock)  # type: ignore[arg-type]
+    return InvitationService(invitations, profiles, users, TTL_DAYS, clock)  # type: ignore[arg-type]
 
 
 @pytest.fixture
@@ -385,3 +391,42 @@ async def test_the_contact_rule_comes_after_the_not_found_forbidden_and_conflict
         await service.accept_invitation(created.id, no_contact)
 
     assert not isinstance(error.value, ContactRequiredError)
+
+
+async def test_an_unconfirmed_sender_cannot_invite_and_nothing_is_created(
+    service: InvitationService,
+    invitations: FakeInvitations,
+    users: FakeUsers,
+    sender,
+    recipient,
+):
+    users.unconfirmed.add(sender)
+
+    with pytest.raises(EmailNotVerifiedError):
+        await service.create_invitation(sender, recipient[1])
+
+    assert not invitations.records
+
+
+async def test_the_verification_rule_is_checked_before_anything_about_the_target(
+    service: InvitationService, users: FakeUsers, sender
+):
+    users.unconfirmed.add(sender)
+
+    # An unknown profile would be 404, but the caller's own state comes first
+    with pytest.raises(EmailNotVerifiedError):
+        await service.create_invitation(sender, uuid4())
+
+
+async def test_an_unconfirmed_recipient_cannot_accept_but_can_still_decline_and_cancel(
+    service: InvitationService, users: FakeUsers, sender, recipient
+):
+    recipient_user, recipient_profile = recipient
+    first = await service.create_invitation(sender, recipient_profile)
+    users.unconfirmed.add(recipient_user)
+
+    with pytest.raises(EmailNotVerifiedError):
+        await service.accept_invitation(first.invitation.id, recipient_user)
+    declined = await service.decline_invitation(first.invitation.id, recipient_user)
+
+    assert declined.invitation.status is Status.DECLINED

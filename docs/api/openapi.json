@@ -103,6 +103,26 @@
         "title": "DistrictCode",
         "type": "string"
       },
+      "EmailNotVerifiedResponse": {
+        "description": "Body of the 403 that asks the caller to confirm the e-mail address first.",
+        "properties": {
+          "code": {
+            "const": "email_not_verified",
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail",
+          "code"
+        ],
+        "title": "EmailNotVerifiedResponse",
+        "type": "object"
+      },
       "EquipmentCode": {
         "description": "Code of a piece of equipment a person uses.",
         "enum": [
@@ -151,6 +171,23 @@
           "detail"
         ],
         "title": "ErrorResponse",
+        "type": "object"
+      },
+      "ForgotPasswordRequest": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /auth/forgot-password``: the address a reset link is asked for.",
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "ForgotPasswordRequest",
         "type": "object"
       },
       "FunctionalLevel": {
@@ -591,6 +628,80 @@
         "title": "MatchRankInfluence",
         "type": "object"
       },
+      "NewsColumnOut": {
+        "description": "The newest items of one category.",
+        "properties": {
+          "id": {
+            "enum": [
+              "world",
+              "ukraine",
+              "veterans"
+            ],
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NewsItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "items"
+        ],
+        "title": "NewsColumnOut",
+        "type": "object"
+      },
+      "NewsItemOut": {
+        "description": "One item of the digest: what the page needs to link to the original article.",
+        "properties": {
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "url",
+          "source",
+          "published_at"
+        ],
+        "title": "NewsItemOut",
+        "type": "object"
+      },
+      "NewsResponse": {
+        "description": "The digest for the landing page, one column per category.",
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/NewsColumnOut"
+            },
+            "title": "Columns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "columns"
+        ],
+        "title": "NewsResponse",
+        "type": "object"
+      },
       "ProfileOwner": {
         "description": "What the owner sees: the public fields plus the private ones, still no location.",
         "properties": {
@@ -893,6 +1004,31 @@
         "title": "RegisterRequest",
         "type": "object"
       },
+      "ResetPasswordRequest": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /auth/reset-password``: the token from the link and the new password.",
+        "properties": {
+          "password": {
+            "maxLength": 128,
+            "minLength": 10,
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 200,
+            "minLength": 20,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ],
+        "title": "ResetPasswordRequest",
+        "type": "object"
+      },
       "SearchRadius": {
         "description": "Search radius a caller may ask for: one of the distance bands of the API, in kilometres.",
         "enum": [
@@ -1066,6 +1202,10 @@
             "title": "Email",
             "type": "string"
           },
+          "email_verified": {
+            "title": "Email Verified",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -1075,7 +1215,8 @@
         "required": [
           "id",
           "email",
-          "created_at"
+          "created_at",
+          "email_verified"
         ],
         "title": "UserResponse",
         "type": "object"
@@ -1112,6 +1253,24 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "VerifyEmailRequest": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /auth/verify-email``: the token from the link in the message.",
+        "properties": {
+          "token": {
+            "maxLength": 200,
+            "minLength": 20,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "VerifyEmailRequest",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1128,6 +1287,41 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "description": "Ask for a password-reset link to be sent to an address.\n\nThe answer is always 204: an unknown address, a known one and one that was sent a link a\nmoment ago cannot be told apart, and the message goes out after the response.\n\n:param body: The address.\n:param service: Authentication service.\n:return: An empty response.",
+        "operationId": "forgot_password_api_v1_auth_forgot_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forgot Password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "description": "Exchange credentials for an access token.\n\n:param body: E-mail and password.\n:param service: Authentication service.\n:raises AuthenticationError: If the credentials are wrong (answered with 401).\n:return: A bearer token.",
@@ -1292,6 +1486,126 @@
           }
         },
         "summary": "Register",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/resend-verification": {
+      "post": {
+        "description": "Send the confirmation message again.\n\nThe answer is always 204, whether or not a message was sent: an account that is already\nconfirmed, or was sent one a moment ago, gets nothing and learns nothing.\n\n:param current: The authenticated caller.\n:param service: Authentication service.\n:return: An empty response.",
+        "operationId": "resend_verification_api_v1_auth_resend_verification_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resend Verification",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "description": "Set a new password with the token from the message.\n\nNo sign-in is needed: the person forgot the password. Tokens issued before the change stop\nworking.\n\n:param body: The token and the new password.\n:param service: Authentication service.\n:raises InvalidResetError: If the token is unknown, used or expired (answered 400).\n:return: An empty response.",
+        "operationId": "reset_password_api_v1_auth_reset_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/verify-email": {
+      "post": {
+        "description": "Confirm the e-mail address with the token from the message.\n\nNo sign-in is needed: the link is opened from a mailbox, possibly on another device.\n\n:param body: The token.\n:param service: Authentication service.\n:raises InvalidVerificationError: If the token is unknown, used or expired (answered 400).\n:return: An empty response.",
+        "operationId": "verify_email_api_v1_auth_verify_email_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Email",
         "tags": [
           "auth"
         ]
@@ -1467,6 +1781,24 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EmailNotVerifiedResponse"
+                    }
+                  ],
+                  "title": "Response 403 Post Invitation Api V1 Invitations Post"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -1658,7 +1990,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EmailNotVerifiedResponse"
+                    }
+                  ],
+                  "title": "Response 403 Accept Invitation Api V1 Invitations  Invitation Id  Accept Post"
                 }
               }
             },
@@ -2042,6 +2382,54 @@
         "summary": "Get Matches",
         "tags": [
           "matches"
+        ]
+      }
+    },
+    "/api/v1/news": {
+      "get": {
+        "description": "Return the newest collected items of each category.\n\nNo sign-in is needed: the items are links to public articles of public sources, and the\nlanding page shows them to every visitor. They are collected once a day by a separate\nworker, never while a visitor waits.\n\n:param service: News service.\n:param limit: Maximum number of items per category.\n:return: One column per category.",
+        "operationId": "get_news_api_v1_news_get",
+        "parameters": [
+          {
+            "description": "Items per column",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 6,
+              "description": "Items per column",
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get News",
+        "tags": [
+          "news"
         ]
       }
     },

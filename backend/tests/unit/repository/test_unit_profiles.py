@@ -39,8 +39,12 @@ def profiles(session: AsyncSession) -> ProfileRepository:
     return ProfileRepository(session)
 
 
-async def make_user_id(session: AsyncSession) -> UUID:
-    account = await UserRepository(session).create_user(f"{uuid4().hex}@example.org", "hash")
+async def make_user_id(session: AsyncSession, confirmed: bool = True) -> UUID:
+    account = await UserRepository(session).create_user(
+        f"{uuid4().hex}@example.org",
+        "hash",
+        verified_at=None if not confirmed else datetime.now(UTC),
+    )
     return account.id
 
 
@@ -326,3 +330,15 @@ async def test_a_record_without_a_cell_and_without_a_profile_is_refused_and_writ
 
     assert await session.scalar(select(func.count()).select_from(Profile)) == 0
     assert await session.scalar(select(func.count()).select_from(ProfileSport)) == 0
+
+
+async def test_a_profile_of_an_unconfirmed_account_looks_hidden_to_other_people(
+    session: AsyncSession, profiles: ProfileRepository
+):
+    owner = await make_user_id(session, confirmed=False)
+    stored = await profiles.replace_profile(owner, make_record())
+
+    assert await profiles.get_public_profile_by_id(stored.id) is None
+    assert await profiles.get_visible_owner_id(stored.id) is None
+    # The owner still sees and edits their own profile
+    assert await profiles.get_profile_by_user_id(owner) is not None

@@ -15,8 +15,10 @@ from app.domain.invitations import (
     apply,
     effective_status,
 )
+from app.domain.verification import EmailNotVerifiedError
 from app.repository.invitations import InvitationRepository
 from app.repository.profiles import ProfileRepository
+from app.repository.users import UserRepository
 
 # The same text for a missing and a hidden profile: a hidden profile must not be discoverable.
 _PROFILE_NOT_FOUND = "Profile not found"
@@ -39,6 +41,7 @@ class InvitationService:
 
     :param invitations: Repository of invitations.
     :param profiles: Repository of profiles, used to address an invitation.
+    :param users: Repository of accounts, used to check that the caller confirmed the e-mail.
     :param ttl_days: How many days an invitation can be answered.
     :param clock: Source of the current time; replaced in tests.
     """
@@ -47,12 +50,14 @@ class InvitationService:
         self,
         invitations: InvitationRepository,
         profiles: ProfileRepository,
+        users: UserRepository,
         ttl_days: int,
         clock: Callable[[], datetime] = _utc_now,
     ) -> None:
         """Keep the collaborators."""
         self.invitations = invitations
         self.profiles = profiles
+        self.users = users
         self.ttl = timedelta(days=ttl_days)
         self.clock = clock
 
@@ -67,12 +72,15 @@ class InvitationService:
 
         :param sender_user_id: The caller.
         :param recipient_profile_id: Profile of the person to invite.
+        :raises EmailNotVerifiedError: If the caller has not confirmed the e-mail address.
         :raises ContactRequiredError: If the caller's profile has no contact.
         :raises ConflictError: If the caller has no profile, targets their own profile, or
             already has a pending invitation to this person.
-        :raises NotFoundError: If the profile is missing or hidden.
+        :raises NotFoundError: If the profile is missing, hidden or belongs to an unconfirmed
+            account.
         :return: The new invitation as the sender sees it.
         """
+        await self._require_verified(sender_user_id)
         if not await self.profiles.profile_exists(sender_user_id):
             raise ConflictError(_NO_OWN_PROFILE)
         # Only the caller's own state is checked here, before the recipient is looked up, so
@@ -128,12 +136,14 @@ class InvitationService:
 
         :param invitation_id: Identifier of the invitation.
         :param user_id: The caller, who must be the recipient.
+        :raises EmailNotVerifiedError: If the caller has not confirmed the e-mail address.
         :raises NotFoundError: If the caller is not a participant.
         :raises AccessDeniedError: If the caller is the sender.
         :raises ConflictError: If the invitation is expired or no longer pending.
         :raises ContactRequiredError: If the caller's profile has no contact.
         :return: The updated invitation.
         """
+        await self._require_verified(user_id)
         return await self._answer(
             Action.ACCEPT,
             self.invitations.accept_invitation,
@@ -195,6 +205,15 @@ class InvitationService:
             apply(fresh.invitation.status, action, fresh.role, now, fresh.invitation.expires_at)
             raise ConflictError(_NO_LONGER_PENDING)
         return await self._load(invitation_id, user_id)
+
+    async def _require_verified(self, user_id: UUID) -> None:
+        """Raise unless the user confirmed the e-mail address.
+
+        Checked before anything about other people is looked up, so the answer depends only on
+        the caller's own state.
+        """
+        if not await self.users.is_email_verified(user_id):
+            raise EmailNotVerifiedError
 
     async def _require_contact(self, user_id: UUID) -> None:
         """Raise unless the user's profile has a contact."""

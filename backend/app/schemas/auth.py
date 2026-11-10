@@ -65,6 +65,50 @@ class LoginRequest(BaseModel):
     password: Annotated[str, Field(min_length=1, max_length=PASSWORD_MAX_LENGTH, repr=False)]
 
 
+class VerifyEmailRequest(BaseModel):
+    """Body of ``POST /auth/verify-email``: the token from the link in the message."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    token: Annotated[
+        str, Field(min_length=20, max_length=200, pattern=r"^[A-Za-z0-9_-]+$", repr=False)
+    ]
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Body of ``POST /auth/forgot-password``: the address a reset link is asked for."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: Email
+
+
+class ResetPasswordRequest(BaseModel):
+    """Body of ``POST /auth/reset-password``: the token from the link and the new password."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    token: Annotated[
+        str, Field(min_length=20, max_length=200, pattern=r"^[A-Za-z0-9_-]+$", repr=False)
+    ]
+    password: Annotated[
+        str, Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH, repr=False)
+    ]
+
+    @field_validator("password")
+    @classmethod
+    def check_policy(cls, value: str) -> str:
+        """Apply the shared password policy with a fixed message.
+
+        :param value: Submitted password.
+        :raises ValueError: If the policy is not met.
+        :return: The password unchanged.
+        """
+        if not password_meets_policy(value):
+            raise ValueError("Password does not meet the policy")
+        return value
+
+
 class TokenResponse(BaseModel):
     """Answer of a successful login."""
 
@@ -80,6 +124,9 @@ class UserResponse(BaseModel):
     id: UUID
     email: str
     created_at: datetime
+    # False until the owner follows the link from the message; such an account can browse and
+    # edit its own profile but cannot invite, accept or be found by others.
+    email_verified: bool
 
     @classmethod
     def from_domain(cls, account: Account) -> "UserResponse":
@@ -88,7 +135,12 @@ class UserResponse(BaseModel):
         :param account: The caller's account.
         :return: The response model.
         """
-        return cls(id=account.id, email=account.email, created_at=account.created_at)
+        return cls(
+            id=account.id,
+            email=account.email,
+            created_at=account.created_at,
+            email_verified=account.is_verified,
+        )
 
 
 class ErrorResponse(BaseModel):

@@ -11,6 +11,7 @@ from app.domain.invitations import Status as InvitationStatus
 from app.schemas.auth import ErrorResponse
 from app.schemas.invitations import (
     ContactRequiredResponse,
+    EmailNotVerifiedResponse,
     InvitationCreate,
     InvitationOut,
     invitation_response,
@@ -29,13 +30,18 @@ _CONFLICT_OR_CONTACT: dict[int | str, dict[str, Any]] = {
     status.HTTP_409_CONFLICT: {"model": ErrorResponse | ContactRequiredResponse}
 }
 _FORBIDDEN: dict[int | str, dict[str, Any]] = {status.HTTP_403_FORBIDDEN: {"model": ErrorResponse}}
+# Sending and accepting need a confirmed e-mail address: the 403 body is either the usual error
+# (accepting as the sender) or the one with the machine code.
+_FORBIDDEN_OR_UNVERIFIED: dict[int | str, dict[str, Any]] = {
+    status.HTTP_403_FORBIDDEN: {"model": ErrorResponse | EmailNotVerifiedResponse}
+}
 
 
 @router.post(
     "",
     response_model=InvitationOut,
     status_code=status.HTTP_201_CREATED,
-    responses={**_UNAUTHORIZED, **_NOT_FOUND, **_CONFLICT_OR_CONTACT},
+    responses={**_UNAUTHORIZED, **_FORBIDDEN_OR_UNVERIFIED, **_NOT_FOUND, **_CONFLICT_OR_CONTACT},
 )
 async def post_invitation(
     body: InvitationCreate, current: CurrentUser, service: InvitationServiceDep
@@ -103,7 +109,12 @@ async def get_invitation(
 @router.post(
     "/{invitation_id}/accept",
     response_model=InvitationOut,
-    responses={**_UNAUTHORIZED, **_FORBIDDEN, **_NOT_FOUND, **_CONFLICT_OR_CONTACT},
+    responses={
+        **_UNAUTHORIZED,
+        **_FORBIDDEN_OR_UNVERIFIED,
+        **_NOT_FOUND,
+        **_CONFLICT_OR_CONTACT,
+    },
 )
 async def accept_invitation(
     invitation_id: UUID, current: CurrentUser, service: InvitationServiceDep

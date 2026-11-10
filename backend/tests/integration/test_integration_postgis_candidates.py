@@ -79,8 +79,13 @@ async def add_profile(
     visible: bool = True,
     capabilities: tuple[CapabilityEntry, ...] = (),
     consent: bool = True,
+    confirmed: bool = True,
 ) -> ProfileView:
-    user = await UserRepository(session).create_user(f"{uuid4().hex}@example.org", "hash")
+    user = await UserRepository(session).create_user(
+        f"{uuid4().hex}@example.org",
+        "hash",
+        verified_at=datetime.now(UTC) if confirmed else None,
+    )
     repository = ProfileRepository(session)
     await repository.replace_profile(
         user.id,
@@ -239,3 +244,14 @@ async def test_postgis_and_haversine_distances_agree_within_the_documented_toler
 
 async def test_the_factory_picks_the_postgis_source_on_postgresql(session: AsyncSession):
     assert isinstance(build_candidate_source(session), PostgisCandidateSource)
+
+
+async def test_postgis_leaves_out_profiles_of_unconfirmed_accounts(session: AsyncSession):
+    swim = (SportEntry(SportCode.SWIMMING),)
+    viewer = await add_profile(session, lat=50.45, lon=30.52, sports=swim)
+    confirmed = await add_profile(session, lat=50.46, lon=30.53, sports=swim)
+    await add_profile(session, lat=50.46, lon=30.54, sports=swim, confirmed=False)
+
+    for source in (PostgisCandidateSource(session), HaversineCandidateSource(session)):
+        found = await source.search_candidates(viewer, 100.0, 10)
+        assert [item.view.id for item in found] == [confirmed.id]

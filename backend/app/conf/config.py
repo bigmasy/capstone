@@ -58,6 +58,26 @@ class Settings(BaseSettings):
     RANKER_ENABLED: bool = False
     RANKER_ARTIFACT_DIR: Path | None = None
     LOG_LEVEL: str = "INFO"
+    # Confirmation of e-mail addresses. "log" writes the message to the log (development and
+    # demo without a mail server), "smtp" delivers it, "memory" keeps it for the tests.
+    MAIL_BACKEND: Literal["log", "smtp", "memory"] = "log"
+    MAIL_FROM: str = "Poruch <no-reply@localhost>"
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = Field(default=587, ge=1, le=65535)
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: SecretStr = SecretStr("")
+    # STARTTLS on the submission port; set false only for implicit TLS (port 465) or a local relay.
+    SMTP_STARTTLS: bool = True
+    SMTP_IMPLICIT_TLS: bool = False
+    # Address of the web client, used to build the link in the message; no trailing slash.
+    PUBLIC_BASE_URL: str = "http://localhost:5173"
+    # How often the news digest of the landing page is collected from the public feeds.
+    NEWS_REFRESH_HOURS: int = Field(default=24, ge=1, le=168)
+    VERIFICATION_TTL_HOURS: int = Field(default=24, ge=1, le=168)
+    # A second message to the same account is not sent sooner than this.
+    VERIFICATION_RESEND_SECONDS: int = Field(default=60, ge=0)
+    # A password-reset link is short-lived: it opens the account to whoever holds it.
+    PASSWORD_RESET_TTL_MINUTES: int = Field(default=60, ge=5, le=1440)
 
     @field_validator("RANKER_ARTIFACT_DIR", mode="before")
     @classmethod
@@ -70,6 +90,20 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @field_validator("PUBLIC_BASE_URL")
+    @classmethod
+    def check_base_url(cls, value: str) -> str:
+        """Require an http(s) origin without a path, and drop a trailing slash.
+
+        :param value: Configured address of the client.
+        :raises ValueError: If it is not of the form ``scheme://host[:port]``.
+        :return: The address without a trailing slash.
+        """
+        parts = urlsplit(value.rstrip("/"))
+        if parts.scheme not in {"http", "https"} or not parts.hostname or parts.path:
+            raise ValueError("PUBLIC_BASE_URL must look like https://host[:port]")
+        return value.rstrip("/")
 
     @field_validator("LOG_LEVEL")
     @classmethod
@@ -122,6 +156,10 @@ class Settings(BaseSettings):
         """
         if self.RANKER_ENABLED and self.RANKER_ARTIFACT_DIR is None:
             raise ValueError("RANKER_ARTIFACT_DIR must be set when RANKER_ENABLED is true")
+        if self.MAIL_BACKEND == "smtp" and not self.SMTP_HOST:
+            raise ValueError("SMTP_HOST must be set when MAIL_BACKEND is smtp")
+        if self.ENV == "prod" and self.MAIL_BACKEND == "memory":
+            raise ValueError("MAIL_BACKEND must not be memory when ENV=prod")
         if self.ENV == "dev":
             if not self.DB_URL.get_secret_value():
                 self.DB_URL = SecretStr(_DEV_DB_URL)

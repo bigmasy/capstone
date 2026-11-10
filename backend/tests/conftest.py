@@ -33,6 +33,8 @@ def make_settings(**overrides: object) -> Settings:
         "ARGON2_TIME_COST": 1,
         "ARGON2_MEMORY_COST_KIB": 8,
         "ARGON2_PARALLELISM": 1,
+        # Messages stay in memory, where the tests read the confirmation link
+        "MAIL_BACKEND": "memory",
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)  # type: ignore[arg-type]

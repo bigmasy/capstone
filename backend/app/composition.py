@@ -5,10 +5,12 @@ about the session type either, so the assembly lives here, the only module that 
 """
 
 import logging
+from datetime import timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.conf.config import Settings
+from app.core.mail import MailSender
 from app.core.security import PasswordHasher, TokenCodec
 from app.domain.matching.scorer import Scorer
 from app.domain.matching.weighted import WeightedScorer
@@ -16,25 +18,48 @@ from app.domain.matching.weights import DEFAULT_WEIGHTS
 from app.repository.candidates import build_candidate_source
 from app.repository.health import HealthRepository
 from app.repository.invitations import InvitationRepository
+from app.repository.news import NewsRepository
+from app.repository.password_reset import PasswordResetRepository
 from app.repository.profiles import ProfileRepository
 from app.repository.users import UserRepository
-from app.services.auth import AuthService
+from app.repository.verification import VerificationRepository
+from app.services.auth import AuthService, Defer, VerificationPolicy
 from app.services.health import HealthService
 from app.services.invitations import InvitationService
 from app.services.matching import MatchingService
+from app.services.news import NewsService
 from app.services.profiles import ProfileService
 
 logger = logging.getLogger(__name__)
 
 
-def build_auth_service(session: AsyncSession, settings: Settings) -> AuthService:
+def build_auth_service(
+    session: AsyncSession, settings: Settings, mail: MailSender, defer: Defer | None = None
+) -> AuthService:
     """Build the authentication service for one request.
 
-    :param session: Database session of the request, handed to the repository only.
+    :param session: Database session of the request, handed to the repositories only.
     :param settings: Application settings.
+    :param mail: The process-wide mail sender.
+    :param defer: Sends a message after the response; None (the tools) sends it at once.
     :return: A ready service.
     """
-    return AuthService(UserRepository(session), PasswordHasher(settings), TokenCodec(settings))
+    policy = VerificationPolicy(
+        base_url=settings.PUBLIC_BASE_URL,
+        ttl=timedelta(hours=settings.VERIFICATION_TTL_HOURS),
+        resend_after=timedelta(seconds=settings.VERIFICATION_RESEND_SECONDS),
+        reset_ttl=timedelta(minutes=settings.PASSWORD_RESET_TTL_MINUTES),
+    )
+    return AuthService(
+        UserRepository(session),
+        PasswordHasher(settings),
+        TokenCodec(settings),
+        VerificationRepository(session),
+        mail,
+        policy,
+        PasswordResetRepository(session),
+        defer,
+    )
 
 
 def build_profile_service(session: AsyncSession) -> ProfileService:
@@ -54,8 +79,20 @@ def build_invitation_service(session: AsyncSession, settings: Settings) -> Invit
     :return: A ready service.
     """
     return InvitationService(
-        InvitationRepository(session), ProfileRepository(session), settings.INVITATION_TTL_DAYS
+        InvitationRepository(session),
+        ProfileRepository(session),
+        UserRepository(session),
+        settings.INVITATION_TTL_DAYS,
     )
+
+
+def build_news_service(session: AsyncSession) -> NewsService:
+    """Build the news service for one request or one collection run.
+
+    :param session: Database session, handed to the repository only.
+    :return: A ready service that fetches the fixed sources.
+    """
+    return NewsService(NewsRepository(session))
 
 
 def build_health_service(session: AsyncSession) -> HealthService:

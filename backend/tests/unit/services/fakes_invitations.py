@@ -148,3 +148,13 @@ class FakeInvitations:
 
     async def cancel_invitation(self, invitation_id: UUID, user_id: UUID, now: datetime) -> bool:
         return await self._transition(invitation_id, user_id, Role.SENDER, Status.CANCELLED, now)
+
+
+class FakeUsers:
+    """Knows which users confirmed their e-mail address; everybody is confirmed by default."""
+
+    def __init__(self) -> None:
+        self.unconfirmed: set[UUID] = set()
+
+    async def is_email_verified(self, user_id: UUID) -> bool:
+        return user_id not in self.unconfirmed
