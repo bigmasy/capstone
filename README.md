@@ -85,7 +85,7 @@ npx playwright install chromium
 E2E_DEMO_PASSWORD=<the SEED_PASSWORD> E2E_API_CONTAINER=<api container> npm run e2e
 ```
 
-Continuous integration ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, type checks, tests on Python 3.11 and 3.12, the PostGIS migrations, image builds, a dependency audit, a smoke test of the whole stack and the end-to-end suite.
+Continuous integration ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, type checks, tests on Python 3.11 and 3.12, the PostGIS migrations, image builds, a dependency audit, a smoke test of the whole stack and the end-to-end suite. A push to `main` that passes all of it is deployed to the server automatically, with a database dump first and a rollback on failure; see [docs/deployment.md](docs/deployment.md).
 
 ## Offline experiment
 
@@ -116,7 +116,8 @@ Runs are deterministic. Each result file records the seeds, the library versions
 backend/    API, domain, ranking, experiment code, migrations, tests
 frontend/   React client, end-to-end tests
 docker/     proxy, database role setup, stack smoke test
-docs/       API contract, work plan
+deploy/     scripts that run on the server during a release
+docs/       API contract, deployment, work plan
 ```
 
 ## License

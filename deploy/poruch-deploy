@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Forced command of the CI deploy key. Installed once on the server (see docs/deployment.md) and
+# bound to the key in ~/.ssh/authorized_keys, so the key can do this and nothing else:
+#
+#   command="/home/deploy/bin/poruch-deploy",restrict ssh-ed25519 AAAA... ci-deploy
+#
+# CI runs `ssh server "deploy <40-character commit sha>"` and sends a tar.gz of the release on
+# standard input. The script accepts that one command, unpacks the archive in a private
+# directory and runs deploy/remote.sh from it.
+set -euo pipefail
+
+command_line="${SSH_ORIGINAL_COMMAND:-}"
+if [[ ! "$command_line" =~ ^deploy\ ([0-9a-f]{40})$ ]]; then
+  echo "refused: expected 'deploy <commit sha>'" >&2
+  exit 1
+fi
+sha="${BASH_REMATCH[1]}"
+
+stage="$(mktemp -d)"
+trap 'rm -rf "$stage"' EXIT
+chmod 700 "$stage"
+
+tar -xzf - -C "$stage" --no-same-owner --no-same-permissions
+[[ -f "$stage/deploy/remote.sh" ]] || { echo "refused: the archive has no deploy/remote.sh" >&2; exit 1; }
+
+bash "$stage/deploy/remote.sh" "$sha" "$stage"

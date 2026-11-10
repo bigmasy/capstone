@@ -3,6 +3,8 @@ name: ci
 on:
   push:
   pull_request:
+  # Runs the checks (and, on main, the deploy) again by hand, for example to redeploy a commit
+  workflow_dispatch:
   schedule:
     # Weekly, so that advisories published after the last push still fail the audit job
     - cron: "17 5 * * 1"
@@ -259,3 +261,121 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose --profile demo down --volumes
+
+  # Continuous deployment. Runs only for a push to main, and only when every job above passed.
+  # It builds the four images once, publishes them to the GitHub container registry under the
+  # commit hash, and tells the server to switch to them (deploy/remote.sh: database dump, pull,
+  # start, wait for the health checks, roll back on failure). The server holds no source code and
+  # builds nothing. Secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS in
+  # the "production" environment; its variable SITE_URL is the public address. docs/deployment.md
+  # describes the one-time setup.
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, unit, postgis, audit, docker, stack, frontend, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ vars.SITE_URL }}
+    # One deploy at a time; a newer push waits instead of cancelling a release halfway through
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Name the images
+        run: |
+          prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+          {
+            echo "BACKEND_IMAGE=$prefix/backend:$GITHUB_SHA"
+            echo "FRONTEND_IMAGE=$prefix/frontend:$GITHUB_SHA"
+            echo "PROXY_IMAGE=$prefix/proxy:$GITHUB_SHA"
+            echo "CERTS_IMAGE=$prefix/certs:$GITHUB_SHA"
+          } | tee images.env >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: ${{ env.BACKEND_IMAGE }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+      # The repository root is the build context: the image needs docs/api/openapi.json
+      - name: Frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          tags: ${{ env.FRONTEND_IMAGE }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+      - name: Proxy image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/proxy
+          target: proxy
+          push: true
+          tags: ${{ env.PROXY_IMAGE }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=proxy
+          cache-to: type=gha,scope=proxy,mode=max
+      - name: Certificate generator image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/proxy
+          target: certs
+          push: true
+          tags: ${{ env.CERTS_IMAGE }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=certs
+          cache-to: type=gha,scope=certs,mode=max
+      - name: Prepare SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      # The server accepts one command for this key (deploy/poruch-deploy). The release goes over
+      # standard input as an archive; the token is the short-lived one of this run and is read
+      # by the server only to pull the images.
+      - name: Deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          stage="$(mktemp -d)"
+          mkdir -p "$stage/deploy"
+          cp docker-compose.yml "$stage/"
+          cp -r docker "$stage/docker"
+          rm -f "$stage/docker/smoke.sh"
+          cp deploy/remote.sh "$stage/deploy/"
+          cp images.env "$stage/images.env"
+          printf '%s' "$GITHUB_ACTOR" > "$stage/registry.user"
+          printf '%s' "$REGISTRY_TOKEN" > "$stage/registry.token"
+          tar -czf - -C "$stage" . | ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "deploy $GITHUB_SHA"
+      # What a visitor gets, through the public address and the certificate that Caddy serves
+      - name: Check the live site
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors \
+            "$SITE_URL/ready" > /dev/null
+          curl --fail --silent --show-error "$SITE_URL/" | grep -q '<div id="root">'
+          curl --fail --silent --show-error "$SITE_URL/api/v1/news" > /dev/null
