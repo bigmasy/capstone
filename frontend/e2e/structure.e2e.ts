@@ -2,7 +2,7 @@ import { uk } from "../src/i18n/uk";
 import { startSession } from "./support/api";
 import { expect, test } from "./support/fixtures";
 import { headingProblems, landmarkProblems } from "./support/probes";
-import { appReady } from "./support/ui";
+import { appReady, passwordLabel } from "./support/ui";
 import type { World } from "./support/world";
 
 /** Document structure: one h1, no skipped heading levels, unique landmarks; live regions that report changes. */
@@ -118,7 +118,7 @@ test.describe("live regions", () => {
     );
     await page.goto("/login");
     await page.getByLabel(uk.auth.email).fill("e2e-nobody@example.invalid");
-    await page.getByLabel(uk.auth.password).fill("Wrong-password-0000");
+    await page.getByLabel(passwordLabel).fill("Wrong-password-0000");
     await page.getByRole("button", { name: uk.auth.submitLogin }).click();
     await expect(page.getByRole("alert")).toContainText(uk.auth.invalidCredentials);
   });

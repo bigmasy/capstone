@@ -20,6 +20,8 @@ export interface World {
   noContact: TestAccount;
   /** Account with a profile far from every demo account (empty feed). */
   farAway: TestAccount;
+  /** Account with a profile whose e-mail address is not confirmed (banner, notices instead of buttons). */
+  unconfirmed: TestAccount;
   /** Demo accounts used for invitations; absent without E2E_DEMO_PASSWORD. */
   demo?: { outgoingTo: DemoSession; incomingPending: DemoSession; accepted: DemoSession };
 }
@@ -118,6 +120,12 @@ export async function buildWorld(baseURL: string): Promise<World> {
       contact: "@e2e_far",
     });
 
+    const unconfirmed = await apiRegister(request, "unconfirmed", { confirmed: false });
+    await apiPutProfile(request, unconfirmed.token, {
+      ...kyivProfile("E2E Unconfirmed"),
+      contact: "@e2e_unconfirmed",
+    });
+
     let demo: World["demo"];
     if (demoPassword) {
       const [outgoingTo, incomingPending, accepted] = await Promise.all([
@@ -141,7 +149,7 @@ export async function buildWorld(baseURL: string): Promise<World> {
       demo = { outgoingTo, incomingPending, accepted };
     }
 
-    const world: World = { rich, bare, noContact, farAway };
+    const world: World = { rich, bare, noContact, farAway, unconfirmed };
     if (demo) world.demo = demo;
     return world;
   } finally {
@@ -153,7 +161,13 @@ export async function buildWorld(baseURL: string): Promise<World> {
 export async function disposeWorld(baseURL: string, world: World): Promise<void> {
   const request = await playwrightRequest.newContext({ baseURL, ignoreHTTPSErrors: true });
   try {
-    for (const account of [world.rich, world.bare, world.noContact, world.farAway]) {
+    for (const account of [
+      world.rich,
+      world.bare,
+      world.noContact,
+      world.farAway,
+      world.unconfirmed,
+    ]) {
       await request.delete(`${API}/auth/me`, { headers: bearer(account.token) });
     }
   } finally {

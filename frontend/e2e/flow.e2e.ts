@@ -1,9 +1,9 @@
 import { expect, test, type Page, type Response } from "@playwright/test";
 import { uk } from "../src/i18n/uk";
-import { apiLogin } from "./support/api";
+import { apiLogin, confirmationLink } from "./support/api";
 import { demoEmail, demoIndexOf, demoPassword, e2ePassword, freshEmail, runId } from "./support/env";
 import { paintedContrast } from "./support/probes";
-import { findForbiddenKeys, mainNav, stubTiles } from "./support/ui";
+import { findForbiddenKeys, mainNav, stubTiles, passwordLabel, confirmPasswordLabel } from "./support/ui";
 import { demoSession, ensureDemoContact } from "./support/world";
 
 /**
@@ -58,7 +58,8 @@ test("a visitor sees the landing page and is sent to the login page from a priva
 test("registration leads to the onboarding form", async () => {
   await owner.goto("/register");
   await owner.getByLabel(uk.auth.email).fill(email);
-  await owner.getByLabel(uk.auth.password).fill(e2ePassword);
+  await owner.getByLabel(passwordLabel).fill(e2ePassword);
+  await owner.getByLabel(confirmPasswordLabel).fill(e2ePassword);
   await owner.getByRole("button", { name: uk.auth.submitRegister }).click();
 
   await expect(owner).toHaveURL(/\/profile$/);
@@ -66,6 +67,24 @@ test("registration leads to the onboarding form", async () => {
   await expect(owner.getByRole("heading", { name: uk.profile.onboarding.title })).toBeVisible();
   // The heading of the new page has focus after the route change
   await expect(owner.getByRole("heading", { level: 1 })).toBeFocused();
+  // A new account has not confirmed its address yet and is told how to
+  await expect(owner.getByRole("region", { name: uk.verification.bannerLabel })).toBeVisible();
+});
+
+test("the e-mailed link confirms the address and the banner goes away", async () => {
+  // The test has no mailbox: the same link the message carries is issued by the API image
+  await owner.goto(confirmationLink(email));
+
+  await expect(owner.getByText(uk.verification.page.success)).toBeVisible();
+  // The token is gone from the address bar
+  expect(owner.url()).not.toContain("token");
+  await owner.getByRole("link", { name: uk.verification.page.toPartners }).click();
+  await expect(owner.getByRole("heading", { level: 1 })).toHaveText(uk.pages.matches.title);
+  await expect(owner.getByRole("region", { name: uk.verification.bannerLabel })).toHaveCount(0);
+  // A used link does not work a second time
+  await owner.goto(confirmationLink(email).replace(/token=.*/, "token=" + "x".repeat(43)));
+  await expect(owner.getByText(uk.verification.page.failure)).toBeVisible();
+  await owner.goto("/profile");
 });
 
 test("onboarding: place from the gazetteer, map, rounded-area text, sports, consent, contact", async () => {
@@ -182,7 +201,7 @@ test("the invited demo user accepts and sees the sender's contact", async ({ bro
     await expect(page.getByLabel(uk.auth.email)).toBeFocused();
     await page.keyboard.type(demoEmail(index));
     await page.keyboard.press("Tab");
-    await expect(page.getByLabel(uk.auth.password)).toBeFocused();
+    await expect(page.getByLabel(passwordLabel)).toBeFocused();
     await page.keyboard.type(demoPassword ?? "");
     await page.keyboard.press("Enter");
 

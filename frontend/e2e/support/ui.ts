@@ -54,3 +54,8 @@ export function findForbiddenKeys(value: unknown, path = "$"): string[] {
 export function mainNav(page: Page): Locator {
   return page.getByRole("navigation", { name: uk.a11y.mainNavigation });
 }
+
+/** Label of the password field; the registration page also has "Підтвердіть пароль", so match the start. */
+export const passwordLabel = /^Пароль/;
+/** Label of the second password field on the registration page. */
+export const confirmPasswordLabel = /^Підтвердіть пароль/;

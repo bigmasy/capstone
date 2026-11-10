@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import type { APIRequestContext, BrowserContext, Page } from "@playwright/test";
 import { e2ePassword, freshEmail } from "./env";
 
@@ -20,11 +21,17 @@ export interface ProfileBody {
   district_code?: string;
   is_visible?: boolean;
   functional_data_consent?: boolean;
-  capabilities?: { category: string; level: number; equipment?: string | null }[];
+  capabilities?: {
+    category: string;
+    level: number;
+    equipment?: string | null;
+  }[];
 }
 
 /** Waits for a rate-limit budget to refill instead of failing; the limits themselves are not under test. */
-async function withRateLimitWait(call: () => ReturnType<APIRequestContext["post"]>) {
+async function withRateLimitWait(
+  call: () => ReturnType<APIRequestContext["post"]>,
+) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const response = await call();
     if (response.status() !== 429) return response;
@@ -42,18 +49,73 @@ export async function apiLogin(
   const response = await withRateLimitWait(() =>
     request.post(`${API}/auth/login`, { data: { email, password } }),
   );
-  if (!response.ok()) throw new Error(`login failed with status ${response.status()}`);
+  if (!response.ok())
+    throw new Error(`login failed with status ${response.status()}`);
   const body = (await response.json()) as { access_token: string };
   return body.access_token;
 }
 
-/** Registers a throw-away account through the API (setup for tests that are not about registration). */
-export async function apiRegister(request: APIRequestContext, label = "user"): Promise<TestAccount> {
+/** Container of the API service, where the confirmation command runs (see the README, "Develop and test"). */
+function apiContainer(): string {
+  const project = process.env.COMPOSE_PROJECT_NAME ?? "adaptive-sport";
+  return process.env.E2E_API_CONTAINER ?? `${project}-api-1`;
+}
+
+function runInApi(args: string[]): string {
+  return execFileSync(
+    "docker",
+    [
+      "exec",
+      "-i",
+      apiContainer(),
+      "python",
+      "-m",
+      "app.tools.verify_email",
+      ...args,
+    ],
+    {
+      encoding: "utf8",
+    },
+  ).trim();
+}
+
+/**
+ * Confirms an account's e-mail address the way an administrator would, with the command of the
+ * API image. No mail server is involved; the end-to-end tests have no mailbox to read.
+ */
+export function confirmEmail(email: string): void {
+  runInApi([email]);
+}
+
+/** Issues a fresh confirmation link for an account, the one the e-mailed message carries. */
+export function confirmationLink(email: string): string {
+  return runInApi(["--link", email]);
+}
+
+/** Issues a fresh password-reset link for an account, the one the e-mailed message carries. */
+export function resetLink(email: string): string {
+  return runInApi(["--reset-link", email]);
+}
+
+/**
+ * Registers a throw-away account through the API (setup for tests that are not about
+ * registration). The address is confirmed, because an unconfirmed account cannot invite, accept
+ * or be found; pass `confirmed: false` for the tests that are about exactly that.
+ */
+export async function apiRegister(
+  request: APIRequestContext,
+  label = "user",
+  { confirmed = true }: { confirmed?: boolean } = {},
+): Promise<TestAccount> {
   const email = freshEmail(label);
   const response = await withRateLimitWait(() =>
-    request.post(`${API}/auth/register`, { data: { email, password: e2ePassword } }),
+    request.post(`${API}/auth/register`, {
+      data: { email, password: e2ePassword },
+    }),
   );
-  if (!response.ok()) throw new Error(`registration failed with status ${response.status()}`);
+  if (!response.ok())
+    throw new Error(`registration failed with status ${response.status()}`);
+  if (confirmed) confirmEmail(email);
   const token = await apiLogin(request, email, e2ePassword);
   return { email, password: e2ePassword, token };
 }
@@ -70,19 +132,28 @@ export async function apiPutProfile(
       headers: { Authorization: `Bearer ${token}` },
     }),
   );
-  if (!response.ok()) throw new Error(`profile save failed with status ${response.status()}`);
+  if (!response.ok())
+    throw new Error(`profile save failed with status ${response.status()}`);
 }
 
 /** Deletes the account of a token; used to clean up throw-away users. Failures are ignored. */
-export async function apiDeleteAccount(request: APIRequestContext, token: string): Promise<void> {
-  await request.delete(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+export async function apiDeleteAccount(
+  request: APIRequestContext,
+  token: string,
+): Promise<void> {
+  await request.delete(`${API}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }
 
 /**
  * Makes every page of the context start with the given session, the way a reload keeps it: the
  * client mirrors its token to sessionStorage, which is per tab, so it is set before the scripts run.
  */
-export async function startSession(context: BrowserContext, token: string): Promise<void> {
+export async function startSession(
+  context: BrowserContext,
+  token: string,
+): Promise<void> {
   await context.addInitScript(
     ([key, value]) => {
       window.sessionStorage.setItem(key as string, value as string);
@@ -92,13 +163,20 @@ export async function startSession(context: BrowserContext, token: string): Prom
 }
 
 /** Opens a path with the given session already in place. */
-export async function openAs(page: Page, token: string, path: string): Promise<void> {
+export async function openAs(
+  page: Page,
+  token: string,
+  path: string,
+): Promise<void> {
   await startSession(page.context(), token);
   await page.goto(path);
 }
 
 /** A profile near the centre of Kyiv with one sport, as the demo population is anchored there. */
-export function kyivProfile(name: string, extra: Partial<ProfileBody> = {}): ProfileBody {
+export function kyivProfile(
+  name: string,
+  extra: Partial<ProfileBody> = {},
+): ProfileBody {
   return {
     display_name: name,
     intensity: 3,
