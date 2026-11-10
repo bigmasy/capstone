@@ -9,7 +9,10 @@ Status: a working MVP with synthetic demo data. There are no real users, and the
 - **Profile without a diagnosis.** A user lists sports with a self-rated level, a usual intensity, a training area and, only with explicit consent, how independently they do a few everyday actions (a 0 to 4 self-assessment) and which equipment they use.
 - **Coarse location.** The place is chosen from a list of cities and districts or on a map. Only the centre of a grid cell of about 4 x 4 km is stored. Other users see a district and a distance band (under 5, 5-10, 10-25, over 25 km), never a coordinate.
 - **Ranked partners with an explanation.** A feed of candidates scored by sport, distance, intensity and functional compatibility. Every card says where the points come from. The functional criterion is shown as a level (low, medium, high) only. A learned ranker (LightGBM) can reorder the feed; when no usable model artifact exists, the weighted baseline is used.
+- **Confirmed e-mail.** After registering, a person gets a message with a one-time link (valid 24 hours, stored only as a digest, never in a URL path or query). Until the address is confirmed the account can edit its own profile, but it cannot send or accept invitations and does not appear in other people's feeds. The check is built so that identity verification through Diia can replace it later.
+- **Password recovery.** "Forgot password?" on the login page sends a one-time link (valid one hour, stored only as a digest, in the URL fragment). The answer is the same for every address, so it cannot be used to find out who is registered, and the message leaves after the response. Setting a new password ends every earlier session of the account and counts as confirming the address. The messages are HTML with a plain-text alternative, a logo shipped inside the message and no remote content.
 - **Invitations.** A pending, accepted, declined, cancelled or expired invitation. A contact is shown to the other side only after the invitation is accepted, and both sides need a contact to send or accept one.
+- **News on the landing page.** A separate worker collects, once a day, the public feeds of a fixed list of publishers (the Paralympic Committee, Move United, Suspilne, Ukrinform, ArmyInform), keeps only items about adaptive and veterans' sport and stores the title, the link and the date. The page reads what was stored, so a visitor never waits for another site. Feed content is treated as hostile input: only https feeds from the fixed list, XML without entities, links checked against the publisher's host, titles reduced to plain text.
 - **Delete everything with one button.** Removing the account removes the profile, the functional data and the invitations.
 
 ## Architecture
@@ -42,6 +45,16 @@ docker compose --profile demo up --build
 
 Open <https://localhost:8443> and accept the warning once (a self-signed development certificate). The `demo` profile adds 200 synthetic accounts named `demo-0001@example.invalid` and so on; their shared password is the `SEED_PASSWORD` you set. Without `--profile demo` you start with an empty database and register yourself.
 
+Without a mail server the confirmation link is written to the log of the `api` service (`MAIL_BACKEND` empty), and an account can be confirmed by hand:
+
+```sh
+docker compose exec api python -m app.tools.verify_email ADDRESS          # confirm at once
+docker compose exec api python -m app.tools.verify_email --link ADDRESS   # print a fresh link
+docker compose exec api python -m app.tools.verify_email --reset-link ADDRESS   # print a password-reset link
+```
+
+To send real mail set `MAIL_BACKEND=smtp` and the `SMTP_*`, `MAIL_FROM` and `PUBLIC_BASE_URL` variables (see `.env.example`). The `news` service collects the digest on start and then every `NEWS_REFRESH_HOURS` hours; `docker compose exec news python -m app.tools.news_worker --once` collects it now.
+
 The one-shot `ranker-train` service trains the demo ranker on synthetic data when the stack starts. Only the proxy publishes a port, and by default only on 127.0.0.1. The header of [docker-compose.yml](docker-compose.yml) lists every variable.
 
 ## Develop and test
@@ -65,11 +78,11 @@ npm run gen:api     # builds src/api/schema.d.ts from docs/api/openapi.json; not
 npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-End-to-end and accessibility checks run in a real browser against a started stack with the demo profile:
+End-to-end and accessibility checks run in a real browser against a started stack with the demo profile. The tests have no mailbox, so they confirm their throw-away accounts with the command above, run inside the API container (`E2E_API_CONTAINER`, by default `<compose project>-api-1`):
 
 ```sh
 npx playwright install chromium
-E2E_DEMO_PASSWORD=<the SEED_PASSWORD> npm run e2e
+E2E_DEMO_PASSWORD=<the SEED_PASSWORD> E2E_API_CONTAINER=<api container> npm run e2e
 ```
 
 Continuous integration ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, type checks, tests on Python 3.11 and 3.12, the PostGIS migrations, image builds, a dependency audit, a smoke test of the whole stack and the end-to-end suite.
@@ -93,7 +106,8 @@ Runs are deterministic. Each result file records the seeds, the library versions
 - The ranking model in the demo is trained on synthetic data. The product does not yet collect real feedback and does not retrain.
 - Accessibility was checked automatically and by scripted scenarios in Chromium. A screen reader and a real phone were not used.
 - There are no usability tests with people and no industrial load tests.
-- Not implemented: chat, e-mail notifications, password recovery, identity or veteran-status verification, calendar export. The district list covers Kyiv only.
+- Not implemented: chat, notifications other than the two account messages (confirmation and password reset), identity or veteran-status verification, calendar export. The district list covers Kyiv only.
+- The news digest depends on the publishers keeping their feeds up; a feed that fails is skipped and tried again the next day, and a column with nothing in it says so.
 - The map loads tiles from OpenStreetMap only when the user asks for a map; the tile server then sees the viewed area and the IP address.
 
 ## Project layout
