@@ -29,9 +29,21 @@ describe("AuthForm", () => {
     vi.unstubAllGlobals();
   });
 
-  const fill = async (user: ReturnType<typeof userEvent.setup>, password = PASSWORD) => {
+  const fill = async (
+    user: ReturnType<typeof userEvent.setup>,
+    password = PASSWORD,
+    confirmation?: string,
+  ) => {
     await user.type(screen.getByLabelText(new RegExp(uk.auth.email)), EMAIL);
-    await user.type(screen.getByLabelText(new RegExp(uk.auth.password)), password);
+    await user.type(
+      screen.getByLabelText(new RegExp(uk.auth.password)),
+      password,
+    );
+    // The registration page asks for the password twice
+    const confirm = screen.queryByLabelText(
+      new RegExp(uk.auth.confirmPassword),
+    );
+    if (confirm) await user.type(confirm, confirmation ?? password);
   };
 
   it("labels the fields and has no axe violations", async () => {
@@ -41,7 +53,10 @@ describe("AuthForm", () => {
     expect(email).toHaveAttribute("type", "email");
     expect(email).toHaveAttribute("autocapitalize", "none");
     expect(email).toHaveAttribute("spellcheck", "false");
-    expect(screen.getByLabelText(new RegExp(uk.auth.password))).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText(new RegExp(uk.auth.password))).toHaveAttribute(
+      "type",
+      "password",
+    );
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -54,7 +69,9 @@ describe("AuthForm", () => {
     const email = await screen.findByLabelText(new RegExp(uk.auth.email));
     await waitFor(() => expect(email).toHaveFocus());
     expect(email).toHaveAttribute("aria-invalid", "true");
-    expect(email).toHaveAccessibleDescription(new RegExp(uk.form.validation.required));
+    expect(email).toHaveAccessibleDescription(
+      new RegExp(uk.form.validation.required),
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -62,16 +79,104 @@ describe("AuthForm", () => {
     const user = userEvent.setup();
     renderWithProviders(<AuthForm mode="register" />);
 
-    await user.type(screen.getByLabelText(new RegExp(uk.auth.email)), "not-an-email");
-    await user.type(screen.getByLabelText(new RegExp(uk.auth.password)), "123456789");
-    await user.click(screen.getByRole("button", { name: uk.auth.submitRegister }));
+    await user.type(
+      screen.getByLabelText(new RegExp(uk.auth.email)),
+      "not-an-email",
+    );
+    await user.type(
+      screen.getByLabelText(new RegExp(uk.auth.password)),
+      "123456789",
+    );
+    await user.click(
+      screen.getByRole("button", { name: uk.auth.submitRegister }),
+    );
 
-    expect(await screen.findByText(uk.form.validation.email)).toBeInTheDocument();
-    expect(screen.getByText(uk.form.validation.passwordMin)).toBeInTheDocument();
+    expect(
+      await screen.findByText(uk.form.validation.email),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(uk.form.validation.passwordMin),
+    ).toBeInTheDocument();
+  });
+
+  it("asks for the password twice on the registration page only", () => {
+    const { unmount } = renderWithProviders(<AuthForm mode="register" />);
+    const confirm = screen.getByLabelText(new RegExp(uk.auth.confirmPassword));
+    expect(confirm).toHaveAttribute("type", "password");
+    expect(confirm).toHaveAttribute("autocomplete", "new-password");
+    unmount();
+
+    renderWithProviders(<AuthForm mode="login" />);
+    expect(
+      screen.queryByLabelText(new RegExp(uk.auth.confirmPassword)),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not register while the two passwords differ and says so next to the field", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AuthForm mode="register" />);
+
+    await fill(user, PASSWORD, `${PASSWORD}x`);
+    await user.click(
+      screen.getByRole("button", { name: uk.auth.submitRegister }),
+    );
+
+    const confirm = screen.getByLabelText(new RegExp(uk.auth.confirmPassword));
+    await waitFor(() =>
+      expect(confirm).toHaveAttribute("aria-invalid", "true"),
+    );
+    expect(confirm).toHaveAccessibleDescription(
+      new RegExp(uk.form.validation.passwordMismatch),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("requires the second password", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AuthForm mode="register" />);
+
+    await user.type(screen.getByLabelText(new RegExp(uk.auth.email)), EMAIL);
+    await user.type(
+      screen.getByLabelText(new RegExp(uk.auth.password)),
+      PASSWORD,
+    );
+    await user.click(
+      screen.getByRole("button", { name: uk.auth.submitRegister }),
+    );
+
+    const confirm = screen.getByLabelText(new RegExp(uk.auth.confirmPassword));
+    await waitFor(() =>
+      expect(confirm).toHaveAccessibleDescription(
+        new RegExp(uk.form.validation.confirmRequired),
+      ),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not send the second password to the API", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(201, {}))
+      .mockResolvedValueOnce(
+        jsonResponse(200, { access_token: "t", token_type: "bearer" }),
+      );
+    renderWithProviders(<AuthForm mode="register" />);
+
+    await fill(user);
+    await user.click(
+      screen.getByRole("button", { name: uk.auth.submitRegister }),
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    // RTK Query passes a Request object to fetch
+    const body = await (fetchMock.mock.calls[0]?.[0] as Request).clone().text();
+    expect(JSON.parse(body)).toEqual({ email: EMAIL, password: PASSWORD });
   });
 
   it("accepts a password of exactly 10 characters", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(200, { access_token: "tok", token_type: "bearer" }));
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { access_token: "tok", token_type: "bearer" }),
+    );
     const user = userEvent.setup();
     renderWithProviders(<AuthForm mode="login" />);
 
@@ -86,18 +191,28 @@ describe("AuthForm", () => {
     renderWithProviders(<AuthForm mode="register" />);
 
     await user.click(screen.getByLabelText(new RegExp(uk.auth.email)));
-    await user.paste(`${"a".repeat(64)}@${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(63)}.com`);
+    await user.paste(
+      `${"a".repeat(64)}@${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(63)}.com`,
+    );
     await user.click(screen.getByLabelText(new RegExp(uk.auth.password)));
     await user.paste("p".repeat(129));
-    await user.click(screen.getByRole("button", { name: uk.auth.submitRegister }));
+    await user.click(
+      screen.getByRole("button", { name: uk.auth.submitRegister }),
+    );
 
-    expect(await screen.findByText(uk.form.validation.emailMax)).toBeInTheDocument();
-    expect(screen.getByText(uk.form.validation.passwordMax)).toBeInTheDocument();
+    expect(
+      await screen.findByText(uk.form.validation.emailMax),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(uk.form.validation.passwordMax),
+    ).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("stores the token after a successful login", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(200, { access_token: "tok", token_type: "bearer" }));
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { access_token: "tok", token_type: "bearer" }),
+    );
     const user = userEvent.setup();
     const { store } = renderWithProviders(<AuthForm mode="login" />);
 
@@ -112,16 +227,25 @@ describe("AuthForm", () => {
 
   it("registers and then logs in", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(201));
-    fetchMock.mockResolvedValueOnce(jsonResponse(200, { access_token: "tok", token_type: "bearer" }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(200, { access_token: "tok", token_type: "bearer" }),
+    );
     const user = userEvent.setup();
     const { store } = renderWithProviders(<AuthForm mode="register" />);
 
     await fill(user);
-    await user.click(screen.getByRole("button", { name: uk.auth.submitRegister }));
+    await user.click(
+      screen.getByRole("button", { name: uk.auth.submitRegister }),
+    );
 
     await waitFor(() => expect(store.getState().auth.token).toBe("tok"));
-    const urls = fetchMock.mock.calls.map(([request]) => (request as Request).url);
-    expect(urls).toEqual(["http://localhost/api/v1/auth/register", "http://localhost/api/v1/auth/login"]);
+    const urls = fetchMock.mock.calls.map(
+      ([request]) => (request as Request).url,
+    );
+    expect(urls).toEqual([
+      "http://localhost/api/v1/auth/register",
+      "http://localhost/api/v1/auth/login",
+    ]);
   });
 
   it("sends the page to the login screen when the account was created but the login failed", async () => {
@@ -137,29 +261,56 @@ describe("AuthForm", () => {
     );
 
     await fill(user);
-    await user.click(screen.getByRole("button", { name: uk.auth.submitRegister }));
+    await user.click(
+      screen.getByRole("button", { name: uk.auth.submitRegister }),
+    );
 
     expect(await screen.findByText("login page")).toBeInTheDocument();
     expect(store.getState().auth.token).toBeNull();
   });
 
   it.each([
-    { name: "401", response: () => jsonResponse(401, { detail: "bad" }), text: uk.auth.invalidCredentials },
-    { name: "429", response: () => jsonResponse(429), text: uk.auth.tooManyAttempts },
-    { name: "500", response: () => jsonResponse(500), text: uk.auth.connectionProblem },
-    { name: "502", response: () => jsonResponse(502), text: uk.auth.connectionProblem },
-    { name: "non-JSON body", response: () => new Response("<html>", { status: 200 }), text: uk.auth.connectionProblem },
-  ])("announces a failed login ($name) with its own message", async ({ response, text }) => {
-    fetchMock.mockResolvedValue(response());
-    const user = userEvent.setup();
-    const { store } = renderWithProviders(<AuthForm mode="login" />);
+    {
+      name: "401",
+      response: () => jsonResponse(401, { detail: "bad" }),
+      text: uk.auth.invalidCredentials,
+    },
+    {
+      name: "429",
+      response: () => jsonResponse(429),
+      text: uk.auth.tooManyAttempts,
+    },
+    {
+      name: "500",
+      response: () => jsonResponse(500),
+      text: uk.auth.connectionProblem,
+    },
+    {
+      name: "502",
+      response: () => jsonResponse(502),
+      text: uk.auth.connectionProblem,
+    },
+    {
+      name: "non-JSON body",
+      response: () => new Response("<html>", { status: 200 }),
+      text: uk.auth.connectionProblem,
+    },
+  ])(
+    "announces a failed login ($name) with its own message",
+    async ({ response, text }) => {
+      fetchMock.mockResolvedValue(response());
+      const user = userEvent.setup();
+      const { store } = renderWithProviders(<AuthForm mode="login" />);
 
-    await fill(user);
-    await user.click(screen.getByRole("button", { name: uk.auth.submitLogin }));
+      await fill(user);
+      await user.click(
+        screen.getByRole("button", { name: uk.auth.submitLogin }),
+      );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(text);
-    expect(store.getState().auth.token).toBeNull();
-  });
+      expect(await screen.findByRole("alert")).toHaveTextContent(text);
+      expect(store.getState().auth.token).toBeNull();
+    },
+  );
 
   it("announces a network failure as a connection problem", async () => {
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
@@ -169,7 +320,9 @@ describe("AuthForm", () => {
     await fill(user);
     await user.click(screen.getByRole("button", { name: uk.auth.submitLogin }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(uk.auth.connectionProblem);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      uk.auth.connectionProblem,
+    );
   });
 
   it("explains that the account exists and links to the login page on 409", async () => {
@@ -178,39 +331,54 @@ describe("AuthForm", () => {
     renderWithProviders(<AuthForm mode="register" />);
 
     await fill(user);
-    await user.click(screen.getByRole("button", { name: uk.auth.submitRegister }));
+    await user.click(
+      screen.getByRole("button", { name: uk.auth.submitRegister }),
+    );
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(uk.auth.accountExists);
-    expect(screen.getByRole("link", { name: uk.auth.accountExistsLink })).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    expect(
+      screen.getByRole("link", { name: uk.auth.accountExistsLink }),
+    ).toHaveAttribute("href", "/login");
   });
 
   it("maps a server 422 to the field and never shows the server text", async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(422, [
-        { type: "string_too_short", loc: ["body", "password"], msg: "SERVER-TEXT with " + PASSWORD },
+        {
+          type: "string_too_short",
+          loc: ["body", "password"],
+          msg: "SERVER-TEXT with " + PASSWORD,
+        },
       ]),
     );
     const user = userEvent.setup();
     renderWithProviders(<AuthForm mode="register" />);
 
     await fill(user);
-    await user.click(screen.getByRole("button", { name: uk.auth.submitRegister }));
+    await user.click(
+      screen.getByRole("button", { name: uk.auth.submitRegister }),
+    );
 
     const password = screen.getByLabelText(new RegExp(uk.auth.password));
-    await waitFor(() => expect(password).toHaveAttribute("aria-invalid", "true"));
-    expect(password).toHaveAccessibleDescription(new RegExp(uk.auth.serverRejectedPassword));
+    await waitFor(() =>
+      expect(password).toHaveAttribute("aria-invalid", "true"),
+    );
+    expect(password).toHaveAccessibleDescription(
+      new RegExp(uk.auth.serverRejectedPassword),
+    );
     await waitFor(() => expect(password).toHaveFocus());
-    expect(screen.getByLabelText(new RegExp(uk.auth.email))).not.toHaveAttribute("aria-invalid");
+    expect(
+      screen.getByLabelText(new RegExp(uk.auth.email)),
+    ).not.toHaveAttribute("aria-invalid");
     expect(document.body).not.toHaveTextContent("SERVER-TEXT");
   });
 
   it("uses aria-disabled instead of disabled while pending and ignores a second submit", async () => {
     let answer: (response: Response) => void = () => undefined;
-    fetchMock.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+    fetchMock.mockReturnValue(
+      new Promise<Response>((resolve) => (answer = resolve)),
+    );
     const user = userEvent.setup();
     renderWithProviders(<AuthForm mode="login" />);
 
@@ -218,10 +386,15 @@ describe("AuthForm", () => {
     const button = screen.getByRole("button", { name: uk.auth.submitLogin });
     await user.click(button);
 
-    await waitFor(() => expect(button).toHaveAttribute("aria-disabled", "true"));
+    await waitFor(() =>
+      expect(button).toHaveAttribute("aria-disabled", "true"),
+    );
     expect(button).not.toBeDisabled();
     await user.click(button);
-    await user.type(screen.getByLabelText(new RegExp(uk.auth.password)), "{Enter}");
+    await user.type(
+      screen.getByLabelText(new RegExp(uk.auth.password)),
+      "{Enter}",
+    );
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     answer(jsonResponse(200, { access_token: "tok", token_type: "bearer" }));

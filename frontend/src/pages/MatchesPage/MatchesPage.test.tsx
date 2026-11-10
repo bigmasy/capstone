@@ -10,6 +10,7 @@ import {
   bodiesSentTo,
   calls,
   jsonResponse,
+  makeAccount,
   makeFeed,
   makeInvitation,
   makeMatch,
@@ -547,6 +548,34 @@ describe("MatchesPage", () => {
       expect(screen.queryByText(text.invite.errorConflict)).toBeNull();
       expect(screen.queryByRole("button", { name: text.invite.confirm })).toBeNull();
       expect(screen.queryByRole("button", { name: text.invite.sent })).toBeNull();
+    });
+
+    it("replaces the invite button with a notice while the address is not confirmed", async () => {
+      routeFetch(fetchMock, routes({
+        "GET /auth/me": () => jsonResponse(200, makeAccount({ email_verified: false })),
+      }));
+      renderPage();
+
+      await screen.findByRole("article", { name: "Андрій" });
+
+      expect(await screen.findByText(uk.verification.inviteNotice)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: text.invite.triggerFor("Андрій") })).toBeNull();
+    });
+
+    it("turns the button into the notice when the server answers email_not_verified", async () => {
+      routeFetch(fetchMock, routes({
+        "POST /invitations": () =>
+          jsonResponse(403, { detail: "server wording", code: "email_not_verified" }),
+      }));
+      const user = userEvent.setup();
+      renderPage();
+
+      await open(user);
+      await user.click(screen.getByRole("button", { name: text.invite.confirm }));
+
+      expect(await screen.findByText(uk.verification.inviteNotice)).toBeInTheDocument();
+      expect(screen.queryByText("server wording")).toBeNull();
+      expect(screen.queryByRole("button", { name: text.invite.confirm })).toBeNull();
     });
 
     it("keeps the usual conflict message for a 409 without the code", async () => {

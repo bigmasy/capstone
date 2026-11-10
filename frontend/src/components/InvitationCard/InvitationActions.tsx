@@ -8,8 +8,11 @@ import {
   useDeclineInvitationMutation,
 } from "../../redux/api/invitationsApi";
 import { isContactRequired } from "../../redux/api/contactRequired";
+import { isEmailNotVerified } from "../../redux/api/emailNotVerified";
+import { useEmailStatus } from "../../redux/api/useEmailStatus";
 import ConfirmAction from "../ConfirmAction/ConfirmAction";
 import ContactRequiredNotice from "../ContactRequiredNotice/ContactRequiredNotice";
+import UnverifiedNotice from "../VerificationBanner/UnverifiedNotice";
 import styles from "./InvitationCard.module.css";
 
 /** What the page tells the user after an answer; it outlives the card that was answered. */
@@ -50,6 +53,8 @@ const InvitationActions = ({ invitation, partnerName, onFeedback }: InvitationAc
   const [cancel] = useCancelInvitationMutation();
   const [failure, setFailure] = useState<string>(text.errors.generic);
   const [needsContact, setNeedsContact] = useState(false);
+  const [refusedUnverified, setRefusedUnverified] = useState(false);
+  const { verified } = useEmailStatus();
 
   if (invitation.status !== "pending") return null;
 
@@ -60,6 +65,11 @@ const InvitationActions = ({ invitation, partnerName, onFeedback }: InvitationAc
       if (!("error" in result)) {
         // The focused message above the list confirms the result, so no toast is added
         onFeedback({ kind: "success", text: done });
+        return true;
+      }
+      if (contactAware && isEmailNotVerified(result.error)) {
+        // The invitation stays pending; the confirmation gives way to a notice
+        setRefusedUnverified(true);
         return true;
       }
       if (contactAware && isContactRequired(result.error)) {
@@ -82,7 +92,9 @@ const InvitationActions = ({ invitation, partnerName, onFeedback }: InvitationAc
     <div className={styles.actions}>
       {invitation.direction === "incoming" ? (
         <>
-          {needsContact ? (
+          {!verified || refusedUnverified ? (
+            <UnverifiedNotice action="accept" />
+          ) : needsContact ? (
             <ContactRequiredNotice />
           ) : (
             <ConfirmAction

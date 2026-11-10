@@ -18,6 +18,9 @@ const LoginPage = () => {
       <p>{uk.pages.login.lead}</p>
       <AuthForm mode="login" />
       <p>
+        <Link to="/forgot-password">{uk.passwordReset.forgotLink}</Link>
+      </p>
+      <p>
         {uk.pages.login.noAccount} <Link to="/register">{uk.nav.register}</Link>
       </p>
     </>

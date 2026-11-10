@@ -25,7 +25,8 @@ describe("App", () => {
     vi.unstubAllGlobals();
   });
 
-  const urls = () => fetchMock.mock.calls.map(([request]) => (request as Request).url);
+  const urls = () =>
+    fetchMock.mock.calls.map(([request]) => (request as Request).url);
 
   describe("status messages", () => {
     it("renders a success toast inside an element with role=status", async () => {
@@ -44,7 +45,10 @@ describe("App", () => {
     it("checks a restored token once with GET /auth/me", async () => {
       fetchMock.mockResolvedValue(jsonResponse(200, {}));
 
-      const { store } = renderWithProviders(<App />, { route: "/profile", preloadedState: loggedIn });
+      const { store } = renderWithProviders(<App />, {
+        route: "/profile",
+        preloadedState: loggedIn,
+      });
 
       // The profile page asks for its own data too; /auth/me must be requested exactly once
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
@@ -61,9 +65,15 @@ describe("App", () => {
     it("clears the session on 401 and explains it on the login page", async () => {
       fetchMock.mockResolvedValue(jsonResponse(401, { detail: "expired" }));
 
-      const { store } = renderWithProviders(<App />, { route: "/profile", preloadedState: loggedIn });
+      const { store } = renderWithProviders(<App />, {
+        route: "/profile",
+        preloadedState: loggedIn,
+      });
 
-      const heading = await screen.findByRole("heading", { level: 1, name: uk.pages.login.title });
+      const heading = await screen.findByRole("heading", {
+        level: 1,
+        name: uk.pages.login.title,
+      });
       expect(heading).toBeInTheDocument();
       expect(store.getState().auth.token).toBeNull();
       expect(window.sessionStorage.getItem("auth.token")).toBeNull();
@@ -78,7 +88,10 @@ describe("App", () => {
       renderWithProviders(<App />, { route: "/", preloadedState: loggedIn });
 
       expect(
-        await screen.findByRole("heading", { level: 1, name: uk.pages.login.title }),
+        await screen.findByRole("heading", {
+          level: 1,
+          name: uk.pages.login.title,
+        }),
       ).toBeInTheDocument();
       expect(screen.getByText(uk.auth.sessionEnded)).toBeInTheDocument();
     });
@@ -86,23 +99,38 @@ describe("App", () => {
     it("keeps the user logged in when the server is unreachable", async () => {
       fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
 
-      const { store } = renderWithProviders(<App />, { route: "/profile", preloadedState: loggedIn });
+      const { store } = renderWithProviders(<App />, {
+        route: "/profile",
+        preloadedState: loggedIn,
+      });
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalled());
       expect(store.getState().auth.token).toBe("test-token");
-      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(uk.pages.profile.title);
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+        uk.pages.profile.title,
+      );
     });
 
     it("lands on the landing page, not on the login page, after signing out of a private page", async () => {
       fetchMock.mockResolvedValue(jsonResponse(200, {}));
       const user = userEvent.setup();
-      const { store } = renderWithProviders(<App />, { route: "/profile", preloadedState: loggedIn });
+      const { store } = renderWithProviders(<App />, {
+        route: "/profile",
+        preloadedState: loggedIn,
+      });
 
-      const nav = await screen.findByRole("navigation", { name: uk.a11y.mainNavigation });
-      await user.click(within(nav).getByRole("button", { name: uk.nav.logout }));
+      const nav = await screen.findByRole("navigation", {
+        name: uk.a11y.mainNavigation,
+      });
+      await user.click(
+        within(nav).getByRole("button", { name: uk.nav.logout }),
+      );
 
       expect(
-        await screen.findByRole("heading", { level: 1, name: uk.pages.home.title }),
+        await screen.findByRole("heading", {
+          level: 1,
+          name: uk.pages.home.title,
+        }),
       ).toBeInTheDocument();
       expect(store.getState().auth.token).toBeNull();
       expect(screen.queryByText(uk.auth.sessionEnded)).not.toBeInTheDocument();

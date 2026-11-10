@@ -4,8 +4,11 @@ import toast from "react-hot-toast";
 import { uk } from "../../i18n/uk";
 import { useSendInvitationMutation } from "../../redux/api/invitationsApi";
 import { isContactRequired } from "../../redux/api/contactRequired";
+import { isEmailNotVerified } from "../../redux/api/emailNotVerified";
+import { useEmailStatus } from "../../redux/api/useEmailStatus";
 import ConfirmAction from "../ConfirmAction/ConfirmAction";
 import ContactRequiredNotice from "../ContactRequiredNotice/ContactRequiredNotice";
+import UnverifiedNotice from "../VerificationBanner/UnverifiedNotice";
 
 const text = uk.feed.invite;
 
@@ -36,6 +39,9 @@ const InviteAction = ({ profileId, name, sent, onSent }: InviteActionProps) => {
   const [send] = useSendInvitationMutation();
   const [failure, setFailure] = useState<string>(text.errorGeneric);
   const [needsContact, setNeedsContact] = useState(false);
+  // The account list may be stale (confirmed in another tab, or not yet read): the server decides
+  const [refusedUnverified, setRefusedUnverified] = useState(false);
+  const { verified } = useEmailStatus();
   const sentRef = useRef<HTMLButtonElement>(null);
   const sentNow = useRef(false);
 
@@ -49,6 +55,10 @@ const InviteAction = ({ profileId, name, sent, onSent }: InviteActionProps) => {
   const invite = async (): Promise<boolean> => {
     const result = await send({ recipient_profile_id: profileId });
     if ("error" in result) {
+      if (isEmailNotVerified(result.error)) {
+        setRefusedUnverified(true);
+        return true;
+      }
       if (isContactRequired(result.error)) {
         // The confirmation is replaced by the notice, so there is nothing left to retry here
         setNeedsContact(true);
@@ -62,6 +72,8 @@ const InviteAction = ({ profileId, name, sent, onSent }: InviteActionProps) => {
     onSent(profileId);
     return true;
   };
+
+  if (!sent && (!verified || refusedUnverified)) return <UnverifiedNotice action="invite" />;
 
   if (needsContact) return <ContactRequiredNotice />;
 

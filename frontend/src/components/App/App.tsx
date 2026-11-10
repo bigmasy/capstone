@@ -8,6 +8,9 @@ import MatchesPage from "../../pages/MatchesPage/MatchesPage";
 import NotFoundPage from "../../pages/NotFoundPage/NotFoundPage";
 import ProfilePage from "../../pages/ProfilePage/ProfilePage";
 import RegisterPage from "../../pages/RegisterPage/RegisterPage";
+import ForgotPasswordPage from "../../pages/ForgotPasswordPage/ForgotPasswordPage";
+import ResetPasswordPage from "../../pages/ResetPasswordPage/ResetPasswordPage";
+import VerifyEmailPage from "../../pages/VerifyEmailPage/VerifyEmailPage";
 import Layout from "../Layout/Layout";
 import PostLoginRedirect from "../PostLoginRedirect/PostLoginRedirect";
 import PrivateRoute from "../PrivateRoute/PrivateRoute";
@@ -25,16 +28,44 @@ const App = () => (
         {/* A logged-in visitor of these pages is sent to /start, which picks onboarding or home */}
         <Route
           path="login"
-          element={<RestrictedRoute component={<LoginPage />} redirectTo="/start" />}
+          element={
+            <RestrictedRoute component={<LoginPage />} redirectTo="/start" />
+          }
         />
         <Route
           path="register"
-          element={<RestrictedRoute component={<RegisterPage />} redirectTo="/start" />}
+          element={
+            <RestrictedRoute component={<RegisterPage />} redirectTo="/start" />
+          }
         />
-        <Route path="start" element={<PrivateRoute component={<PostLoginRedirect />} />} />
-        <Route path="profile" element={<PrivateRoute component={<ProfilePage />} />} />
-        <Route path="matches" element={<PrivateRoute component={<MatchesPage />} />} />
-        <Route path="invitations" element={<PrivateRoute component={<InvitationsPage />} />} />
+        <Route
+          path="forgot-password"
+          element={
+            <RestrictedRoute
+              component={<ForgotPasswordPage />}
+              redirectTo="/start"
+            />
+          }
+        />
+        {/* Opened from a mailbox, possibly on another device: no session is required */}
+        <Route path="verify-email" element={<VerifyEmailPage />} />
+        <Route path="reset-password" element={<ResetPasswordPage />} />
+        <Route
+          path="start"
+          element={<PrivateRoute component={<PostLoginRedirect />} />}
+        />
+        <Route
+          path="profile"
+          element={<PrivateRoute component={<ProfilePage />} />}
+        />
+        <Route
+          path="matches"
+          element={<PrivateRoute component={<MatchesPage />} />}
+        />
+        <Route
+          path="invitations"
+          element={<PrivateRoute component={<InvitationsPage />} />}
+        />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

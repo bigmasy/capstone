@@ -10,3 +10,10 @@ export function formatPoints(value: number): string {
 export function formatDateTime(iso: string): string {
   return dateFormat.format(new Date(iso));
 }
+
+const dayFormat = new Intl.DateTimeFormat("uk-UA", { day: "numeric", month: "long", year: "numeric" });
+
+/** Formats a timestamp as a date only, such as "10 листопада 2026 р.". */
+export function formatDate(iso: string): string {
+  return dayFormat.format(new Date(iso));
+}

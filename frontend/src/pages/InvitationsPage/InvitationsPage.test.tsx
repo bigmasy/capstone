@@ -9,6 +9,7 @@ import { uk } from "../../i18n/uk";
 import {
   calls,
   jsonResponse,
+  makeAccount,
   makeInvitation,
   makePartner,
   routeFetch,
@@ -521,6 +522,36 @@ describe("InvitationsPage", () => {
       expect(screen.queryByRole("group", { name: text.actions.accept.title })).toBeNull();
       expect(screen.getByRole("button", { name: text.actions.decline.triggerFor("Марія") })).toBeInTheDocument();
       expect(posts()).toEqual([`POST /invitations/${ID}/accept`]);
+    });
+
+    it("replaces accept with a notice while the address is not confirmed and keeps decline", async () => {
+      routeFetch(fetchMock, routes({
+        "GET /auth/me": () => jsonResponse(200, makeAccount({ email_verified: false })),
+      }));
+      renderPage();
+
+      await screen.findByRole("article");
+
+      expect(await screen.findByText(uk.verification.acceptNotice)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: text.actions.accept.triggerFor("Марія") })).toBeNull();
+      expect(screen.getByRole("button", { name: text.actions.decline.triggerFor("Марія") })).toBeInTheDocument();
+    });
+
+    it("turns accept into the notice when the server answers email_not_verified", async () => {
+      routeFetch(fetchMock, routes({
+        [`POST /invitations/${ID}/accept`]: () =>
+          jsonResponse(403, { detail: "server wording", code: "email_not_verified" }),
+      }));
+      const user = userEvent.setup();
+      renderPage();
+
+      await openAction(user, text.actions.accept.triggerFor("Марія"));
+      await user.click(screen.getByRole("button", { name: text.actions.accept.confirm }));
+
+      expect(await screen.findByText(uk.verification.acceptNotice)).toBeInTheDocument();
+      expect(screen.queryByText("server wording")).toBeNull();
+      // A plain 403 (answering one's own invitation) keeps its own message, see above
+      expect(within(screen.getByRole("article")).getByText(text.status.pending)).toBeInTheDocument();
     });
 
     it("still declines after the contact notice was shown", async () => {

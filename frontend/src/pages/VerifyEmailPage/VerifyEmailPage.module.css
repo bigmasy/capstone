@@ -1,0 +1,7 @@
+.result {
+  max-width: 36rem;
+}
+
+.result p {
+  margin: 0 0 var(--space-3);
+}

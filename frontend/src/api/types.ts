@@ -8,6 +8,13 @@ type Schemas = components["schemas"];
 
 export type Credentials = Schemas["LoginRequest"];
 export type TokenResponse = Schemas["TokenResponse"];
+export type Account = Schemas["UserResponse"];
+export type VerifyEmailRequest = Schemas["VerifyEmailRequest"];
+export type EmailNotVerifiedResponse = Schemas["EmailNotVerifiedResponse"];
+
+export type NewsFeed = Schemas["NewsResponse"];
+export type NewsColumn = Schemas["NewsColumnOut"];
+export type NewsItem = Schemas["NewsItemOut"];
 
 export type Taxonomy = Schemas["TaxonomyResponse"];
 export type EquipmentRule = Schemas["EquipmentRule"];

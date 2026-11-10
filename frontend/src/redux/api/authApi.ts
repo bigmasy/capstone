@@ -1,5 +1,8 @@
-import type { FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query/react";
-import type { Credentials, TokenResponse } from "../../api/types";
+import type {
+  FetchArgs,
+  FetchBaseQueryError,
+} from "@reduxjs/toolkit/query/react";
+import type { Account, Credentials, TokenResponse } from "../../api/types";
 import { tokenReceived } from "../auth/slice";
 import { baseApi } from "./baseApi";
 
@@ -31,7 +34,11 @@ async function requestToken(
   send: Send,
   credentials: Credentials,
 ): Promise<{ token: string } | { error: FetchBaseQueryError }> {
-  const response = await send({ url: "/auth/login", method: "POST", body: credentials });
+  const response = await send({
+    url: "/auth/login",
+    method: "POST",
+    body: credentials,
+  });
   if (response.error) return { error: response.error };
   if (!isTokenResponse(response.data)) {
     return {
@@ -63,7 +70,11 @@ export const authApi = baseApi.injectEndpoints({
      */
     register: build.mutation<LoginResult, Credentials>({
       async queryFn(credentials, api, _extra, send) {
-        const created = await send({ url: "/auth/register", method: "POST", body: credentials });
+        const created = await send({
+          url: "/auth/register",
+          method: "POST",
+          body: credentials,
+        });
         if (created.error) return { error: created.error };
 
         const result = await requestToken(send, credentials);
@@ -72,11 +83,49 @@ export const authApi = baseApi.injectEndpoints({
         return { data: { loggedIn: true } };
       },
     }),
-    /** Validates the restored token at bootstrap; a 401 ends the session in the base query. */
-    me: build.query<unknown, void>({
+    /**
+     * The caller's own account. It validates the restored token at bootstrap (a 401 ends the
+     * session in the base query) and tells whether the e-mail address is confirmed.
+     */
+    me: build.query<Account, void>({
       query: () => "/auth/me",
+      providesTags: ["Account"],
+    }),
+    /** Confirms the address with the token from the e-mailed link; no session is needed. */
+    verifyEmail: build.mutation<void, string>({
+      query: (token) => ({
+        url: "/auth/verify-email",
+        method: "POST",
+        body: { token },
+      }),
+      // The confirmation changes what the account may do, so the account is read again
+      invalidatesTags: ["Account"],
+    }),
+    /** Asks for the confirmation message again; the answer is always 204. */
+    resendVerification: build.mutation<void, void>({
+      query: () => ({ url: "/auth/resend-verification", method: "POST" }),
+    }),
+    /** Asks for a password-reset link; the answer is 204 for every address, known or not. */
+    forgotPassword: build.mutation<void, string>({
+      query: (email) => ({
+        url: "/auth/forgot-password",
+        method: "POST",
+        body: { email },
+      }),
+    }),
+    /** Sets a new password with the token from the e-mailed link; no session is needed. */
+    resetPassword: build.mutation<void, { token: string; password: string }>({
+      query: (body) => ({ url: "/auth/reset-password", method: "POST", body }),
     }),
   }),
 });
 
-export const { useLoginMutation, useRegisterMutation, useMeQuery } = authApi;
+export const {
+  useLoginMutation,
+  useRegisterMutation,
+  useMeQuery,
+  useVerifyEmailMutation,
+  useResendVerificationMutation,
+  useForgotPasswordMutation,
+  useResetPasswordMutation,
+} = authApi;

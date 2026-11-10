@@ -1,59 +1,80 @@
-import { adaptiveSportColumns, verifiedOn, type InfoItem } from "../../content/adaptiveSport";
+import type { NewsColumn, NewsItem } from "../../api/types";
+import { formatDate } from "../../i18n/format";
 import { uk } from "../../i18n/uk";
+import { useGetNewsQuery } from "../../redux/api/newsApi";
 import ExternalLink from "../ExternalLink/ExternalLink";
 import Icon, { type IconName } from "../Icon/Icon";
+import Loader from "../Loader/Loader";
 import Section from "./Section";
 import styles from "./SourcesSection.module.css";
 
 const text = uk.landing.sources;
 
-const columnIcons: Record<(typeof adaptiveSportColumns)[number]["id"], IconName> = {
-  games: "calendar",
-  news: "news",
-  organisations: "building",
+const columnIcons: Record<NewsColumn["id"], IconName> = {
+  world: "calendar",
+  ukraine: "news",
+  veterans: "building",
 };
 
-const dateFormat = new Intl.DateTimeFormat("uk-UA", { day: "numeric", month: "long", year: "numeric" });
-
-/** Items shown before the rest of a column is folded away, so the section stays short. */
-const VISIBLE_ITEMS = 3;
-
-const renderItem = (item: InfoItem) => (
-  <li className={styles.item} key={item.id}>
+const renderItem = (item: NewsItem) => (
+  <li className={styles.item} key={item.url}>
     <h4 className={styles.itemTitle}>
-      <ExternalLink href={item.href}>{item.title}</ExternalLink>
+      <ExternalLink href={item.url}>{item.title}</ExternalLink>
     </h4>
-    <p className={styles.source}>{item.source}</p>
-    <p className={styles.description}>{item.description}</p>
+    <p className={styles.source}>
+      {item.source}
+      <span aria-hidden="true"> · </span>
+      <time dateTime={item.published_at}>{formatDate(item.published_at)}</time>
+    </p>
   </li>
 );
 
-/** Three columns of verified external sources about adaptive sport, with a disclaimer. */
-const SourcesSection = () => (
-  <Section heading={text.heading} lead={text.lead} tone="tint">
-    <div className={`grid grid-3 ${styles.columns}`}>
-      {adaptiveSportColumns.map((column) => (
-        <div className={`card ${styles.column}`} key={column.id}>
-          <h3 className={styles.columnHeading}>
-            <Icon name={columnIcons[column.id]} size={22} />
-            <span>{column.heading}</span>
-          </h3>
-          <ul className={styles.items}>{column.items.slice(0, VISIBLE_ITEMS).map(renderItem)}</ul>
-          {column.items.length > VISIBLE_ITEMS && (
-            <details className={styles.more}>
-              <summary className={styles.moreSummary}>
-                {text.showMore(column.items.length - VISIBLE_ITEMS)}
-              </summary>
-              <ul className={styles.items}>{column.items.slice(VISIBLE_ITEMS).map(renderItem)}</ul>
-            </details>
-          )}
-        </div>
-      ))}
-    </div>
-    <p className={styles.disclaimer}>
-      {text.disclaimer} {text.verified(dateFormat.format(new Date(`${verifiedOn}T12:00:00`)))}
-    </p>
-  </Section>
-);
+/**
+ * News about adaptive sport, collected from public feeds by a worker once a day and read
+ * from the API here. It shows what was stored, never a list written into the page: a column
+ * with nothing in it says so, and a failed request offers to try again.
+ */
+const SourcesSection = () => {
+  const { data, isLoading, isError, refetch } = useGetNewsQuery();
+
+  let body;
+  if (isLoading) {
+    body = <Loader label={text.loading} />;
+  } else if (isError || !data) {
+    body = (
+      <div>
+        <p role="alert">{text.failed}</p>
+        <button className="button button-secondary" type="button" onClick={() => void refetch()}>
+          {text.retry}
+        </button>
+      </div>
+    );
+  } else {
+    body = (
+      <div className={`grid grid-3 ${styles.columns}`}>
+        {data.columns.map((column) => (
+          <div className={`card ${styles.column}`} key={column.id}>
+            <h3 className={styles.columnHeading}>
+              <Icon name={columnIcons[column.id]} size={22} />
+              <span>{text.columns[column.id]}</span>
+            </h3>
+            {column.items.length > 0 ? (
+              <ul className={styles.items}>{column.items.map(renderItem)}</ul>
+            ) : (
+              <p className={styles.empty}>{text.empty}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <Section heading={text.heading} lead={text.lead} tone="tint">
+      {body}
+      <p className={styles.disclaimer}>{text.disclaimer}</p>
+    </Section>
+  );
+};
 
 export default SourcesSection;

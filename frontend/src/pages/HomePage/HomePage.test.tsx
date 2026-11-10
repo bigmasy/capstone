@@ -2,9 +2,8 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { adaptiveSportColumns } from "../../content/adaptiveSport";
 import { uk } from "../../i18n/uk";
-import { jsonResponse, makeProfile, routeFetch, taxonomy } from "../../test/api";
+import { jsonResponse, makeNews, makeProfile, routeFetch, taxonomy } from "../../test/api";
 import { loggedIn, renderWithProviders } from "../../test/utils";
 import HomePage from "./HomePage";
 
@@ -14,6 +13,7 @@ describe("HomePage (landing)", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     routeFetch(fetchMock, {
+      "GET /news": () => jsonResponse(200, makeNews()),
       "GET /taxonomy": () => jsonResponse(200, taxonomy),
       "GET /profiles/me": () => jsonResponse(200, makeProfile()),
     });
@@ -37,10 +37,17 @@ describe("HomePage (landing)", () => {
       expect(screen.queryByRole("link", { name: uk.landing.hero.memberCta })).toBeNull();
     });
 
-    it("does not call the API", () => {
+    it("asks the API only for the public news, never for anything that needs a session", async () => {
       renderWithProviders(<HomePage />);
 
-      expect(fetchMock).not.toHaveBeenCalled();
+      await screen.findByText("Meet in Brescia");
+
+      const requests = fetchMock.mock.calls.map(([input]) => {
+        const request = input as Request;
+        return `${request.method} ${new URL(request.url).pathname}`;
+      });
+      expect(requests).toEqual(["GET /api/v1/news"]);
+      expect((fetchMock.mock.calls[0]?.[0] as Request).headers.get("Authorization")).toBeNull();
     });
 
     it("explains how it works in four steps", () => {
@@ -117,33 +124,95 @@ describe("HomePage (landing)", () => {
     });
   });
 
-  describe("adaptive sport sources", () => {
-    it("shows three columns with every verified link opening safely in a new tab", () => {
+  describe("adaptive sport news", () => {
+    const sources = () => screen.getByRole("region", { name: uk.landing.sources.heading });
+
+    it("shows the collected items in their columns, each link opening safely in a new tab", async () => {
       renderWithProviders(<HomePage />);
 
-      const section = screen.getByRole("region", { name: uk.landing.sources.heading });
-      for (const column of adaptiveSportColumns) {
-        const heading = within(section).getByRole("heading", { level: 3, name: column.heading });
-        const columnElement = heading.parentElement as HTMLElement;
-        expect(within(columnElement).getAllByRole("link")).toHaveLength(column.items.length);
-        for (const item of column.items) {
-          const link = within(columnElement).getByRole("link", {
-            name: `${item.title} (${uk.a11y.opensInNewTab})`,
-          });
-          expect(link).toHaveAttribute("href", item.href);
-          expect(link).toHaveAttribute("target", "_blank");
-          expect(link).toHaveAttribute("rel", "noopener noreferrer");
-          expect(link).toHaveTextContent(uk.a11y.opensInNewTab);
-        }
-      }
+      const link = await screen.findByRole("link", {
+        name: `Паралімпійці отримають премії (${uk.a11y.opensInNewTab})`,
+      });
+      expect(link).toHaveAttribute("href", "https://suspilne.media/2");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+      const column = within(sources())
+        .getByRole("heading", { level: 3, name: uk.landing.sources.columns.ukraine })
+        .parentElement as HTMLElement;
+      expect(within(column).getByText("Суспільне")).toBeInTheDocument();
+      expect(within(column).getByText(/9 листопада 2026/)).toBeInTheDocument();
     });
 
-    it("carries the disclaimer and the date on which the links were checked", () => {
+    it("says so in a column that has nothing yet", async () => {
       renderWithProviders(<HomePage />);
 
-      const section = screen.getByRole("region", { name: uk.landing.sources.heading });
-      expect(section).toHaveTextContent("Матеріали зібрано з відкритих джерел; ми не відповідаємо за їхній зміст.");
-      expect(section).toHaveTextContent(/6 листопада 2026/);
+      await screen.findByText("Meet in Brescia");
+
+      const column = within(sources())
+        .getByRole("heading", { level: 3, name: uk.landing.sources.columns.veterans })
+        .parentElement as HTMLElement;
+      expect(within(column).getByText(uk.landing.sources.empty)).toBeInTheDocument();
+      expect(within(column).queryByRole("link")).toBeNull();
+    });
+
+    it("carries the disclaimer and no date on which anything was checked or updated", async () => {
+      renderWithProviders(<HomePage />);
+
+      await screen.findByText("Meet in Brescia");
+
+      expect(sources()).toHaveTextContent(
+        "Матеріали зібрано з відкритих джерел; ми не відповідаємо за їхній зміст.",
+      );
+      expect(sources()).not.toHaveTextContent(/перевірено|оновлено/i);
+    });
+
+    it("renders a title as text, never as markup", async () => {
+      routeFetch(fetchMock, {
+        "GET /news": () =>
+          jsonResponse(
+            200,
+            makeNews({
+              columns: [
+                {
+                  id: "world",
+                  items: [
+                    {
+                      title: "<img src=x onerror=alert(1)>Title",
+                      url: "https://www.paralympic.org/n/9",
+                      source: "IPC",
+                      published_at: "2026-11-06T09:00:00Z",
+                    },
+                  ],
+                },
+              ],
+            }),
+          ),
+      });
+      renderWithProviders(<HomePage />);
+
+      expect(await screen.findByText(/<img src=x onerror=alert\(1\)>Title/)).toBeInTheDocument();
+      expect(sources().querySelector("img")).toBeNull();
+    });
+
+    it("offers to try again when the news cannot be loaded and then shows them", async () => {
+      const user = userEvent.setup();
+      routeFetch(fetchMock, { "GET /news": () => jsonResponse(500, { detail: "boom" }) });
+      renderWithProviders(<HomePage />);
+
+      expect(await screen.findByText(uk.landing.sources.failed)).toBeInTheDocument();
+      expect(screen.queryByText("boom")).toBeNull();
+      routeFetch(fetchMock, { "GET /news": () => jsonResponse(200, makeNews()) });
+      await user.click(screen.getByRole("button", { name: uk.landing.sources.retry }));
+
+      expect(await screen.findByText("Meet in Brescia")).toBeInTheDocument();
+      expect(screen.queryByText(uk.landing.sources.failed)).toBeNull();
+    });
+
+    it("has no axe violations with the news shown", async () => {
+      const { container } = renderWithProviders(<HomePage />);
+      await screen.findByText("Meet in Brescia");
+
+      expect(await axe(container)).toHaveNoViolations();
     });
   });
 

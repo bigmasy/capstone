@@ -9,7 +9,11 @@ import { useLoginMutation, useRegisterMutation } from "../../redux/api/authApi";
 import FocusFirstError from "../FormField/FocusFirstError";
 import FormField from "../FormField/FormField";
 import Loader from "../Loader/Loader";
-import { describeAuthError, type AuthFailure, type AuthMode } from "./authErrors";
+import {
+  describeAuthError,
+  type AuthFailure,
+  type AuthMode,
+} from "./authErrors";
 import styles from "./AuthForm.module.css";
 
 interface AuthFormProps {
@@ -31,7 +35,23 @@ const credentialsSchema = Yup.object({
     .max(128, messages.passwordMax),
 });
 
-const initialValues: Credentials = { email: "", password: "" };
+// Registration also asks for the password twice, so that a typo does not lock the person out
+const registerSchema = credentialsSchema.shape({
+  confirmPassword: Yup.string()
+    .required(messages.confirmRequired)
+    .oneOf([Yup.ref("password")], messages.passwordMismatch),
+});
+
+interface AuthValues extends Credentials {
+  /** Only used on the registration page; never sent to the API. */
+  confirmPassword: string;
+}
+
+const initialValues: AuthValues = {
+  email: "",
+  password: "",
+  confirmPassword: "",
+};
 
 /** Email and password form shared by the login and registration pages. */
 const AuthForm = ({ mode }: AuthFormProps) => {
@@ -42,11 +62,19 @@ const AuthForm = ({ mode }: AuthFormProps) => {
   const [failure, setFailure] = useState<AuthFailure | null>(null);
   const isRegister = mode === "register";
 
-  const handleSubmit = async (values: Credentials, helpers: FormikHelpers<Credentials>) => {
+  const handleSubmit = async (
+    values: AuthValues,
+    helpers: FormikHelpers<AuthValues>,
+  ) => {
     setFailure(null);
-    const credentials = { email: values.email.trim(), password: values.password };
+    const credentials = {
+      email: values.email.trim(),
+      password: values.password,
+    };
     try {
-      const result = await (isRegister ? register(credentials) : login(credentials));
+      const result = await (isRegister
+        ? register(credentials)
+        : login(credentials));
       if ("error" in result) {
         const described = describeAuthError(result.error, mode);
         setFailure(described);
@@ -66,10 +94,16 @@ const AuthForm = ({ mode }: AuthFormProps) => {
   return (
     <Formik
       initialValues={initialValues}
-      validationSchema={credentialsSchema}
+      validationSchema={isRegister ? registerSchema : credentialsSchema}
       onSubmit={handleSubmit}
     >
-      {({ getFieldProps, errors, touched, isSubmitting, handleSubmit: submit }) => {
+      {({
+        getFieldProps,
+        errors,
+        touched,
+        isSubmitting,
+        handleSubmit: submit,
+      }) => {
         // aria-disabled does not stop a click or Enter, so a submit while pending is ignored here
         const onSubmit = (event: FormEvent<HTMLFormElement>) => {
           if (isSubmitting) {
@@ -80,7 +114,12 @@ const AuthForm = ({ mode }: AuthFormProps) => {
         };
 
         return (
-          <Form className={styles.form} noValidate ref={formRef} onSubmit={onSubmit}>
+          <Form
+            className={styles.form}
+            noValidate
+            ref={formRef}
+            onSubmit={onSubmit}
+          >
             <FocusFirstError formRef={formRef} />
             <FormField
               {...getFieldProps("email")}
@@ -101,6 +140,18 @@ const AuthForm = ({ mode }: AuthFormProps) => {
               required
               error={touched.password ? errors.password : undefined}
             />
+            {isRegister && (
+              <FormField
+                {...getFieldProps("confirmPassword")}
+                type="password"
+                label={uk.auth.confirmPassword}
+                autoComplete="new-password"
+                required
+                error={
+                  touched.confirmPassword ? errors.confirmPassword : undefined
+                }
+              />
+            )}
             {failure && (
               <p className={styles.submitError} role="alert">
                 <strong>{uk.form.errorPrefix}</strong> {failure.message}

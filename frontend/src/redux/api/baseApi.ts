@@ -51,6 +51,6 @@ export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithAuth,
   // Feature APIs add their own tag types here
-  tagTypes: ["Profile", "Match", "Invitation"],
+  tagTypes: ["Profile", "Match", "Invitation", "Account"],
   endpoints: () => ({}),
 });

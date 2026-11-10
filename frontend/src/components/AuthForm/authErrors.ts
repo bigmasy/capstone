@@ -23,7 +23,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Field names that a 422 answer points at; the server's own wording is never used. */
 function rejectedFields(data: unknown): AuthField[] {
-  const items = Array.isArray(data) ? data : isRecord(data) ? data.detail : undefined;
+  const items = Array.isArray(data)
+    ? data
+    : isRecord(data)
+      ? data.detail
+      : undefined;
   if (!Array.isArray(items)) return [];
 
   const fields: AuthField[] = [];
@@ -46,7 +50,8 @@ function rejectedFields(data: unknown): AuthField[] {
  * @param error The `error` of an RTK Query result (any value is accepted).
  */
 export function describeAuthError(error: unknown, mode: AuthMode): AuthFailure {
-  const generic = mode === "login" ? uk.auth.loginFailed : uk.auth.registerFailed;
+  const generic =
+    mode === "login" ? uk.auth.loginFailed : uk.auth.registerFailed;
   if (!isRecord(error)) return { message: generic, fields: {} };
 
   const { status } = error;
@@ -72,7 +77,9 @@ export function describeAuthError(error: unknown, mode: AuthMode): AuthFailure {
     if (names.length > 0) {
       return {
         message: generic,
-        fields: Object.fromEntries(names.map((name) => [name, fieldMessages[name]])),
+        fields: Object.fromEntries(
+          names.map((name) => [name, fieldMessages[name]]),
+        ),
       };
     }
   }

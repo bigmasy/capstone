@@ -5,6 +5,7 @@ import AppBar from "../AppBar/AppBar";
 import ErrorBoundary from "../ErrorBoundary/ErrorBoundary";
 import Footer from "../Footer/Footer";
 import SkipLink from "../SkipLink/SkipLink";
+import VerificationBanner from "../VerificationBanner/VerificationBanner";
 import styles from "./Layout.module.css";
 
 const MAIN_ID = "main-content";
@@ -46,6 +47,7 @@ const Layout = () => {
     <div className={styles.shell}>
       <SkipLink targetId={MAIN_ID} />
       <AppBar />
+      <VerificationBanner />
       <main
         id={MAIN_ID}
         className={location.pathname === LANDING_PATH ? `${styles.main} ${styles.mainWide}` : styles.main}

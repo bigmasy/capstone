@@ -1,5 +1,7 @@
 import { expect, type Mock } from "vitest";
 import type {
+  Account,
+  NewsFeed,
   InvitationIncoming,
   InvitationOut,
   InvitationPartner,
@@ -118,6 +120,49 @@ export const taxonomy: Taxonomy = {
   capability_levels: [0, 1, 2, 3, 4],
   intensities: [1, 2, 3, 4, 5],
 };
+
+/** The digest of the landing page: one item in the first two columns and none in the last. */
+export function makeNews(overrides: Partial<NewsFeed> = {}): NewsFeed {
+  return {
+    columns: [
+      {
+        id: "world",
+        items: [
+          {
+            title: "Meet in Brescia",
+            url: "https://www.paralympic.org/n/1",
+            source: "Міжнародний паралімпійський комітет",
+            published_at: "2026-11-06T09:00:00Z",
+          },
+        ],
+      },
+      {
+        id: "ukraine",
+        items: [
+          {
+            title: "Паралімпійці отримають премії",
+            url: "https://suspilne.media/2",
+            source: "Суспільне",
+            published_at: "2026-11-09T07:00:00Z",
+          },
+        ],
+      },
+      { id: "veterans", items: [] },
+    ],
+    ...overrides,
+  };
+}
+
+/** The caller's own account as `GET /auth/me` answers; confirmed unless stated otherwise. */
+export function makeAccount(overrides: Partial<Account> = {}): Account {
+  return {
+    id: "6f1c1c0e-0000-4000-8000-0000000000ff",
+    email: "olena@example.org",
+    created_at: "2026-11-01T10:00:00Z",
+    email_verified: true,
+    ...overrides,
+  };
+}
 
 /** A stored profile as the owner receives it; the location is not part of it. */
 export function makeProfile(overrides: Partial<ProfileOwner> = {}): ProfileOwner {
