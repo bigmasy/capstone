@@ -7,7 +7,7 @@
 # references of this commit) and the credentials CI uses to pull them. The script
 #   1. logs in to the registry with a throw-away Docker config, so nothing stays on disk;
 #   2. dumps the database, keeping the last ten dumps;
-#   3. switches the stack to the new images and waits until every service is healthy;
+#   3. switches the stack to the new images and waits until every service is ready;
 #   4. on a failure, puts the previous images back and exits non-zero, so CI shows a red run;
 #   5. removes the images of older releases, keeping the new one and the one before it.
 #
@@ -60,11 +60,17 @@ fi
 cp "$stage/images.env" .deploy.env
 chmod 600 .deploy.env
 
+# Every long-running service healthy, every one-shot service finished with status 0
+wait_ready() {
+  COMPOSE="docker compose --env-file .env --env-file .deploy.env --profile demo" \
+    bash docker/wait-stack.sh
+}
+
 rollback() {
   if [[ -s .deploy.env.prev ]]; then
     log "rolling back to the previous release"
     cp .deploy.env.prev .deploy.env
-    stack up -d --remove-orphans --wait --wait-timeout 300 || log "rollback did not come up either"
+    { stack up -d --remove-orphans && wait_ready; } || log "rollback did not come up either"
   else
     log "no previous release to roll back to"
   fi
@@ -75,7 +81,7 @@ if ! stack pull --quiet; then
   fail "could not pull the images"
 fi
 
-if ! stack up -d --remove-orphans --wait --wait-timeout 300; then
+if ! stack up -d --remove-orphans || ! wait_ready; then
   stack ps || true
   stack logs --no-color --tail 40 api || true
   rollback
