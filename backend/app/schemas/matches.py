@@ -101,6 +101,7 @@ class MatchItem(ProfilePublic):
         return cls(
             id=profile.id,
             display_name=entry.display_name,
+            has_photo=entry.has_photo,
             district_code=profile.district,
             intensity=profile.intensity,
             sports=[

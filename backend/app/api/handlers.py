@@ -26,6 +26,7 @@ from app.domain.errors import (
 )
 from app.domain.invitations import ContactRequiredError
 from app.domain.password_reset import InvalidResetError
+from app.domain.photo import PHOTO_INVALID_CODE, PhotoRejectedError
 from app.domain.verification import EmailNotVerifiedError, InvalidVerificationError
 
 _STATUS_BY_ERROR: dict[type[DomainError], int] = {
@@ -255,6 +256,20 @@ async def location_required_handler(request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def photo_rejected_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Answer an upload that cannot be used as a photograph with a 422 and a reason code.
+
+    :param request: Failing request (unused).
+    :param exc: A :class:`PhotoRejectedError`; its message is fixed and repeats no input.
+    :return: JSON response with status 422 and ``{"detail": ..., "code": ...}``.
+    """
+    code = exc.code if isinstance(exc, PhotoRejectedError) else PHOTO_INVALID_CODE
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": str(exc), "code": code},
+    )
+
+
 def describe_validation_errors_truthfully(app: FastAPI) -> None:
     """Make the published schema of a validation error match what the handler returns.
 
@@ -286,5 +301,6 @@ def register_exception_handlers(app: FastAPI) -> None:
     for error_type in _STATUS_BY_ERROR:
         app.add_exception_handler(error_type, domain_error_handler)
     app.add_exception_handler(LocationRequiredError, location_required_handler)
+    app.add_exception_handler(PhotoRejectedError, photo_rejected_handler)
     app.add_exception_handler(ContactRequiredError, contact_required_handler)
     app.add_exception_handler(EmailNotVerifiedError, email_not_verified_handler)

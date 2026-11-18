@@ -22,6 +22,7 @@ from app.domain.invitations import (
 )
 from app.domain.profile import SportEntry
 from app.repository.users import as_utc
+from app.repository.visibility import discoverable
 
 _DUPLICATE = "You already have a pending invitation to this person"
 _RECIPIENT_GONE = "Profile not found"
@@ -313,6 +314,8 @@ class InvitationRepository:
                     Profile.display_name,
                     Profile.district_code,
                     Profile.intensity,
+                    # A photograph is announced only where the route that serves it would answer
+                    (Profile.photo_updated_at.is_not(None) & discoverable()).label("has_photo"),
                 ).where(Profile.user_id.in_(user_ids))
             )
         ).all()
@@ -334,6 +337,7 @@ class InvitationRepository:
                 district=row.district_code,
                 intensity=row.intensity,
                 sports=tuple(sorted(sports[row.id], key=lambda entry: entry.sport.value)),
+                has_photo=bool(row.has_photo),
             )
             for row in profile_rows
         }

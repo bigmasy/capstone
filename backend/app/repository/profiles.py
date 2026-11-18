@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database.models import Profile, ProfileSport
 from app.domain.account import LocationRequiredError, OwnerProfile, ProfileRecord, PublicProfile
-from app.domain.privacy import GridCell
+from app.domain.privacy import AreaPrecision, GridCell
 from app.domain.profile import FunctionalProfile, ProfileView, SportEntry
 from app.repository import private_layer
 from app.repository.users import as_utc
@@ -63,6 +63,8 @@ class ProfileRepository:
             contact=row.contact,
             created_at=as_utc(row.created_at),
             updated_at=as_utc(row.updated_at),
+            area_precision=row.area_precision,
+            has_photo=row.photo_updated_at is not None,
         )
 
     async def get_profile_by_user_id(self, user_id: UUID) -> OwnerProfile | None:
@@ -102,6 +104,7 @@ class ProfileRepository:
             district=row.district_code,
             intensity=row.intensity,
             sports=_sports(row),
+            has_photo=row.photo_updated_at is not None,
         )
 
     async def get_visible_owner_id(self, profile_id: UUID) -> UUID | None:
@@ -210,6 +213,8 @@ class ProfileRepository:
         if record.cell is not None:
             row.area_lat = record.cell.latitude
             row.area_lon = record.cell.longitude
+            if record.area_precision is not None:
+                row.area_precision = record.area_precision
         row.functional_consent_at = record.functional_consent_at
         row.contact = record.contact
         await self.db.flush()
@@ -220,6 +225,24 @@ class ProfileRepository:
         )
         await private_layer.replace_capabilities(self.db, row.id, record.capabilities)
         await self.db.commit()
+
+    async def get_stored_area(self, user_id: UUID) -> tuple[GridCell, AreaPrecision] | None:
+        """Load the stored cell of a user's profile together with its grid.
+
+        For the owner's own save only: the cell never leaves the service that asks for it.
+
+        :param user_id: Owner of the profile.
+        :return: The cell centre and the grid it belongs to, or None without a profile.
+        """
+        result = await self.db.execute(
+            select(Profile.area_lat, Profile.area_lon, Profile.area_precision).where(
+                Profile.user_id == user_id
+            )
+        )
+        row = result.one_or_none()
+        if row is None:
+            return None
+        return GridCell(latitude=row.area_lat, longitude=row.area_lon), row.area_precision
 
     async def remove_profile(self, user_id: UUID) -> bool:
         """Delete the profile of a user with its sports and capabilities.

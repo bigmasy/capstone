@@ -1,6 +1,17 @@
 {
   "components": {
     "schemas": {
+      "AreaPrecision": {
+        "description": "How coarse the stored area of a profile is; the owner chooses it.\n\nEach value names a grid. The grids are nested: a cell of a coarser grid consists of whole\ncells of every finer one, so an area can be made coarser later without knowing the point it\ncame from. ``PLACE`` is the choice of a city or a district alone.",
+        "enum": [
+          "1km",
+          "2km",
+          "4km",
+          "place"
+        ],
+        "title": "AreaPrecision",
+        "type": "string"
+      },
       "CapabilityItem": {
         "additionalProperties": false,
         "description": "A declared capability; used in requests and in the owner's response.",
@@ -392,6 +403,11 @@
               }
             ]
           },
+          "has_photo": {
+            "description": "Whether GET /profiles/{id}/photo has a picture for the caller.",
+            "title": "Has Photo",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -415,6 +431,7 @@
           "district_code",
           "intensity",
           "sports",
+          "has_photo",
           "contact"
         ],
         "title": "InvitationPartner",
@@ -535,6 +552,11 @@
               }
             ]
           },
+          "has_photo": {
+            "description": "Whether GET /profiles/{id}/photo has a picture for the caller.",
+            "title": "Has Photo",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -571,6 +593,7 @@
           "district_code",
           "intensity",
           "sports",
+          "has_photo",
           "distance_band",
           "breakdown",
           "rank_source",
@@ -702,9 +725,35 @@
         "title": "NewsResponse",
         "type": "object"
       },
-      "ProfileOwner": {
-        "description": "What the owner sees: the public fields plus the private ones, still no location.",
+      "PhotoRejectedResponse": {
+        "description": "Body of the 422 answer to an upload that cannot be used as a photograph.",
         "properties": {
+          "code": {
+            "enum": [
+              "photo_invalid",
+              "photo_too_large"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail",
+          "code"
+        ],
+        "title": "PhotoRejectedResponse",
+        "type": "object"
+      },
+      "ProfileOwner": {
+        "description": "What the owner sees: the public fields plus the private ones, still no location.\n\n``area_precision`` says how coarse the stored area is; the area itself is not returned.",
+        "properties": {
+          "area_precision": {
+            "$ref": "#/components/schemas/AreaPrecision"
+          },
           "capabilities": {
             "items": {
               "$ref": "#/components/schemas/CapabilityItem"
@@ -758,6 +807,11 @@
             "title": "Functional Data Consent",
             "type": "boolean"
           },
+          "has_photo": {
+            "description": "Whether GET /profiles/{id}/photo has a picture for the caller.",
+            "title": "Has Photo",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -790,7 +844,9 @@
           "district_code",
           "intensity",
           "sports",
+          "has_photo",
           "is_visible",
+          "area_precision",
           "functional_data_consent",
           "functional_consent_at",
           "capabilities",
@@ -818,6 +874,11 @@
               }
             ]
           },
+          "has_photo": {
+            "description": "Whether GET /profiles/{id}/photo has a picture for the caller.",
+            "title": "Has Photo",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -840,7 +901,8 @@
           "display_name",
           "district_code",
           "intensity",
-          "sports"
+          "sports",
+          "has_photo"
         ],
         "title": "ProfilePublic",
         "type": "object"
@@ -849,6 +911,17 @@
         "additionalProperties": false,
         "description": "Body of ``PUT /profiles/me``: the full profile, replacing the previous one.\n\n``latitude`` and ``longitude`` go together: send both or neither. Both omitted (or null)\nkeeps the location stored with the existing profile, so the contact or the sports can be\nedited without entering the location again. The first save of a profile needs both, and\nsending only one is rejected.",
         "properties": {
+          "area_precision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AreaPrecision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How coarse the stored area is: a grid of about 1, 2 or 4 km, or 'place' for a city or district alone. With coordinates it selects the grid they are coarsened to; without them a coarser value coarsens the stored area and a finer one is ignored. Omit to keep the stored choice (4km for a new profile)."
+          },
           "capabilities": {
             "default": [],
             "items": {
@@ -2573,6 +2646,117 @@
         ]
       }
     },
+    "/api/v1/profiles/me/photo": {
+      "delete": {
+        "description": "Delete the caller's photograph; the answer is the same when there was none.\n\n:param current: The authenticated caller.\n:param service: Profile service.\n:raises NotFoundError: If the caller has no profile (answered with 404).\n:return: An empty response.",
+        "operationId": "delete_my_photo_api_v1_profiles_me_photo_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete My Photo",
+        "tags": [
+          "profiles"
+        ]
+      },
+      "put": {
+        "description": "Upload the caller's photograph, replacing the previous one.\n\nThe body is the picture itself (JPEG, PNG or WebP, at most 2 MB), not a form. It is decoded\nand stored again as a small square JPEG, so the original file and its metadata are not kept.\n\n:param request: The upload; its body is the picture.\n:param current: The authenticated caller.\n:param service: Profile service.\n:raises PhotoRejectedError: If the body is too large or is not a picture (answered with 422).\n:raises NotFoundError: If the caller has no profile yet (answered with 404).\n:return: An empty response.",
+        "operationId": "put_my_photo_api_v1_profiles_me_photo_put",
+        "requestBody": {
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoRejectedResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put My Photo",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
     "/api/v1/profiles/{profile_id}": {
       "get": {
         "description": "Return the public view of a visible profile.\n\nThe same answer, 404, is given for a missing profile and for a hidden one.\n\n:param profile_id: Identifier of the profile.\n:param current: The authenticated caller; any signed-in user may look.\n:param service: Profile service.\n:raises NotFoundError: If the profile is missing or hidden (answered with 404).\n:return: Display name, district, intensity and sports.",
@@ -2637,6 +2821,71 @@
           }
         ],
         "summary": "Get Profile",
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/api/v1/profiles/{profile_id}/photo": {
+      "get": {
+        "description": "Return the photograph of a profile as a JPEG.\n\nThe owner always gets their own. Anyone else gets it only while the profile is visible; a\nhidden profile, a missing profile and a profile without a photograph all answer 404.\n\n:param profile_id: Identifier of the profile.\n:param current: The authenticated caller.\n:param service: Profile service.\n:raises NotFoundError: If there is nothing the caller may see (answered with 404).\n:return: The picture, cacheable only by the caller's own browser.",
+        "operationId": "get_profile_photo_api_v1_profiles__profile_id__photo_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {}
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Profile Photo",
         "tags": [
           "profiles"
         ]

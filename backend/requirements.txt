@@ -11,3 +11,5 @@ greenlet==3.5.6
 argon2-cffi==25.1.0
 PyJWT==2.15.1
 defusedxml==0.7.1
+# Decodes an uploaded profile photograph and writes it again without metadata.
+pillow==13.0.0

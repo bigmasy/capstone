@@ -22,6 +22,10 @@ PUBLIC_ROUTES = {
 }
 
 
+# Routes that answer with a file instead of a JSON model.
+BINARY_ROUTES = {"/api/v1/profiles/{profile_id}/photo"}
+
+
 def api_routes(app: FastAPI) -> list[APIRoute]:
     return [route for route in app.routes if isinstance(route, APIRoute)]
 
@@ -30,7 +34,7 @@ def test_every_route_declares_a_response_model_or_an_empty_204(app: FastAPI):
     for route in api_routes(app):
         if route.status_code == status.HTTP_204_NO_CONTENT:
             assert route.response_model is None, route.path
-        else:
+        elif route.path not in BINARY_ROUTES:
             assert route.response_model is not None, route.path
 
 

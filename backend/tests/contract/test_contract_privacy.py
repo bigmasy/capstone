@@ -32,6 +32,9 @@ ALLOWED_PROPERTIES = {
     # public profile
     "id",
     "display_name",
+    "has_photo",
+    # reason code of a refused photograph upload
+    "code",
     "district_code",
     "intensity",
     "sports",
@@ -93,6 +96,7 @@ MATCH_PROPERTIES = {
     "total",
     "id",
     "display_name",
+    "has_photo",
     "district_code",
     "intensity",
     "sports",

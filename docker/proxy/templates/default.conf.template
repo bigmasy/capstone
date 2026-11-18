@@ -160,6 +160,15 @@ server {
         client_max_body_size 64k;
         include /etc/nginx/conf.d/snippets/api-proxy.conf;
     }
+    # The one route with a large body: a profile photograph, at most 2 MB. It shares the write
+    # budget of the profile, which also keeps uploads from being used to fill the database.
+    location = /api/v1/profiles/me/photo {
+        limit_req zone=profile_write burst=5 nodelay;
+        limit_req zone=api burst=20 nodelay;
+        limit_conn conn_per_ip 20;
+        client_max_body_size 2m;
+        include /etc/nginx/conf.d/snippets/api-proxy.conf;
+    }
     location /api/ {
         limit_req zone=api burst=20 nodelay;
         limit_conn conn_per_ip 20;

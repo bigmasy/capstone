@@ -58,6 +58,7 @@ class InvitationPartner(ProfilePublic):
             district_code=profile.district,
             intensity=profile.intensity,
             sports=[SportItem.model_validate(entry) for entry in profile.sports],
+            has_photo=profile.has_photo,
             contact=contact,
         )
 

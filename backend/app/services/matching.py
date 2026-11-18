@@ -93,6 +93,7 @@ class MatchingService:
 
         found = await self.candidates.search_candidates(viewer, radius, self.candidate_limit)
         names = {item.view.id: item.display_name for item in found}
+        with_photo = {item.view.id for item in found if item.has_photo}
         eligible = eligible_candidates(viewer, [item.view for item in found])
         if sport is not None:
             eligible = [c for c in eligible if sport in c.profile.sport_codes]
@@ -103,7 +104,11 @@ class MatchingService:
         page = ranked[skip : skip + limit]
         return MatchPage(
             entries=[
-                MatchEntry(display_name=names[item.candidate.profile.id], scored=item)
+                MatchEntry(
+                    display_name=names[item.candidate.profile.id],
+                    scored=item,
+                    has_photo=item.candidate.profile.id in with_photo,
+                )
                 for item in page
             ],
             skip=skip,

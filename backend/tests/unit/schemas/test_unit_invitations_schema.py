@@ -92,6 +92,7 @@ def test_the_response_has_no_location_or_functional_field():
         "district_code",
         "intensity",
         "sports",
+        "has_photo",
         "contact",
     }
 

@@ -10,6 +10,7 @@ from datetime import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.conf.config import Settings
+from app.core.images import normalise_photo
 from app.core.mail import MailSender
 from app.core.security import PasswordHasher, TokenCodec
 from app.domain.matching.scorer import Scorer
@@ -20,6 +21,7 @@ from app.repository.health import HealthRepository
 from app.repository.invitations import InvitationRepository
 from app.repository.news import NewsRepository
 from app.repository.password_reset import PasswordResetRepository
+from app.repository.photos import PhotoRepository
 from app.repository.profiles import ProfileRepository
 from app.repository.users import UserRepository
 from app.repository.verification import VerificationRepository
@@ -68,7 +70,11 @@ def build_profile_service(session: AsyncSession) -> ProfileService:
     :param session: Database session of the request, handed to the repository only.
     :return: A ready service.
     """
-    return ProfileService(ProfileRepository(session))
+    return ProfileService(
+        ProfileRepository(session),
+        photos=PhotoRepository(session),
+        normalise_photo=normalise_photo,
+    )
 
 
 def build_invitation_service(session: AsyncSession, settings: Settings) -> InvitationService:

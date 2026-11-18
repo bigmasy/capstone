@@ -7,10 +7,55 @@ import math
 from dataclasses import dataclass
 from enum import StrEnum
 
-# Grid step: 0.04 degrees of latitude is about 4.4 km; 0.06 degrees of longitude at 50 N is
-# about 4.3 km
+
+class AreaPrecision(StrEnum):
+    """How coarse the stored area of a profile is; the owner chooses it.
+
+    Each value names a grid. The grids are nested: a cell of a coarser grid consists of whole
+    cells of every finer one, so an area can be made coarser later without knowing the point it
+    came from. ``PLACE`` is the choice of a city or a district alone.
+    """
+
+    KM_1 = "1km"
+    KM_2 = "2km"
+    KM_4 = "4km"
+    PLACE = "place"
+
+    @property
+    def rank(self) -> int:
+        """Position from the finest grid (0) to the coarsest (3)."""
+        return _PRECISION_ORDER.index(self)
+
+    def is_coarser_than(self, other: "AreaPrecision") -> bool:
+        """Tell whether this grid has larger cells than another one.
+
+        :param other: Grid to compare with.
+        :return: True if the cells of this grid are larger.
+        """
+        return self.rank > other.rank
+
+
+_PRECISION_ORDER = (
+    AreaPrecision.KM_1,
+    AreaPrecision.KM_2,
+    AreaPrecision.KM_4,
+    AreaPrecision.PLACE,
+)
+
+# Grid step of the default precision: 0.04 degrees of latitude is about 4.4 km; 0.06 degrees of
+# longitude at 50 N is about 4.3 km
 LAT_STEP = 0.04
 LON_STEP = 0.06
+DEFAULT_PRECISION = AreaPrecision.KM_4
+
+# Steps in degrees (latitude, longitude). Every step is twice the previous one, which is what
+# makes the grids nested.
+GRID_STEPS: dict[AreaPrecision, tuple[float, float]] = {
+    AreaPrecision.KM_1: (0.01, 0.015),
+    AreaPrecision.KM_2: (0.02, 0.03),
+    AreaPrecision.KM_4: (LAT_STEP, LON_STEP),
+    AreaPrecision.PLACE: (0.08, 0.12),
+}
 
 _MAX_LATITUDE = 90.0
 _MAX_LONGITUDE = 180.0
@@ -77,7 +122,9 @@ def _cell_center(value: float, step: float, limit: float) -> float:
     return (index + 0.5) * step
 
 
-def coarsen(latitude: float, longitude: float) -> GridCell:
+def coarsen(
+    latitude: float, longitude: float, precision: AreaPrecision = DEFAULT_PRECISION
+) -> GridCell:
     """Return the centre of the grid cell that contains the point.
 
     The grid is deterministic: the same point always yields the same cell, so repeated
@@ -88,13 +135,15 @@ def coarsen(latitude: float, longitude: float) -> GridCell:
 
     :param latitude: Exact latitude in degrees.
     :param longitude: Exact longitude in degrees.
+    :param precision: Grid to use; the default is the grid of about 4 km.
     :raises ValueError: If a value is not finite.
     :return: The cell centre, rounded to 6 decimals.
     """
     if not (math.isfinite(latitude) and math.isfinite(longitude)):
         raise ValueError("coordinates must be finite numbers")
-    lat = _cell_center(latitude, LAT_STEP, _MAX_LATITUDE)
-    lon = _cell_center(longitude, LON_STEP, _MAX_LONGITUDE)
+    lat_step, lon_step = GRID_STEPS[precision]
+    lat = _cell_center(latitude, lat_step, _MAX_LATITUDE)
+    lon = _cell_center(longitude, lon_step, _MAX_LONGITUDE)
     return GridCell(latitude=round(lat, 6), longitude=round(lon, 6))
 
 

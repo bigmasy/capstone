@@ -13,7 +13,7 @@ from tests.integration.helpers import make_profile_body, sign_up, sign_up_with_p
 OWNER_FIELDS = {
     "id", "display_name", "district_code", "intensity", "sports", "is_visible",
     "functional_data_consent", "functional_consent_at", "capabilities", "contact",
-    "created_at", "updated_at",
+    "created_at", "updated_at", "has_photo", "area_precision",
 }  # fmt: skip
 
 
@@ -168,7 +168,9 @@ async def test_public_view_has_no_private_fields(client: httpx.AsyncClient):
     response = await client.get(f"/api/v1/profiles/{profile['id']}", headers=viewer.headers)
 
     assert response.status_code == 200
-    assert set(response.json()) == {"id", "display_name", "district_code", "intensity", "sports"}
+    assert set(response.json()) == {
+        "id", "display_name", "district_code", "intensity", "sports", "has_photo",
+    }  # fmt: skip
 
 
 async def test_hidden_and_missing_profiles_give_the_same_404(client: httpx.AsyncClient):

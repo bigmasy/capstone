@@ -18,10 +18,12 @@ class CandidateProfile:
     :param view: Snapshot of the profile. Its functional layer is filled only if the owner gave
         consent.
     :param display_name: Name the owner chose to show to other people.
+    :param has_photo: Whether the owner uploaded a photograph.
     """
 
     view: ProfileView
     display_name: str
+    has_photo: bool = False
 
 
 class CandidateSource(Protocol):
@@ -53,10 +55,12 @@ class MatchEntry:
 
     :param display_name: Public name of the candidate.
     :param scored: The candidate with its score, breakdown and rank influence.
+    :param has_photo: Whether the candidate uploaded a photograph.
     """
 
     display_name: str
     scored: Scored
+    has_photo: bool = False
 
 
 @dataclass(frozen=True, slots=True)

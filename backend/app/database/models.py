@@ -16,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     MetaData,
     String,
     Uuid,
@@ -27,6 +28,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from app.domain.account import CONTACT_MAX_LENGTH, DISPLAY_NAME_MAX_LENGTH, EMAIL_MAX_LENGTH
 from app.domain.invitations import Status
+from app.domain.privacy import DEFAULT_PRECISION, AreaPrecision
 from app.domain.taxonomy import (
     MAX_CAPABILITY_LEVEL,
     MAX_INTENSITY,
@@ -178,6 +180,16 @@ class Profile(Base):
     is_visible: Mapped[bool] = mapped_column(default=True, server_default=true())
     area_lat: Mapped[float] = mapped_column(Double)
     area_lon: Mapped[float] = mapped_column(Double)
+    # The grid the cell above belongs to; the owner chooses how coarse the stored area is.
+    area_precision: Mapped[AreaPrecision] = mapped_column(
+        _code_column(AreaPrecision, "area_precision"),
+        default=DEFAULT_PRECISION,
+        server_default=DEFAULT_PRECISION.value,
+    )
+    # Set while a photograph is stored; lets every reader know without touching the picture.
+    photo_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     functional_consent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -193,6 +205,21 @@ class Profile(Base):
     )
     # There is intentionally no relationship to FunctionalCapability: the private layer is
     # reached only through app.repository.private_layer, never by walking an attribute.
+
+
+class ProfilePhoto(Base):
+    """The photograph of a profile, in its stored form: a small square JPEG without metadata.
+
+    Kept apart from ``profiles`` so that no query of profiles loads picture bytes by accident.
+    """
+
+    __tablename__ = "profile_photos"
+
+    profile_id: Mapped[UUID] = mapped_column(
+        ForeignKey("profiles.id", ondelete="CASCADE"), primary_key=True
+    )
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ProfileSport(Base):

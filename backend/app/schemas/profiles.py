@@ -6,7 +6,7 @@ system as a district code only.
 """
 
 from datetime import datetime
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
 from pydantic import (
@@ -30,6 +30,7 @@ from app.domain.account import (
     ProfileDraft,
     PublicProfile,
 )
+from app.domain.privacy import AreaPrecision
 from app.domain.profile import CapabilityEntry, SportEntry
 from app.domain.taxonomy import (
     CATEGORIES,
@@ -137,6 +138,15 @@ class ProfilePut(BaseModel):
             ),
         )
     )
+    area_precision: AreaPrecision | None = Field(
+        default=None,
+        description=(
+            "How coarse the stored area is: a grid of about 1, 2 or 4 km, or 'place' for a city "
+            "or district alone. With coordinates it selects the grid they are coarsened to; "
+            "without them a coarser value coarsens the stored area and a finer one is ignored. "
+            "Omit to keep the stored choice (4km for a new profile)."
+        ),
+    )
     sports: Annotated[list[SportItem], Field(min_length=1, max_length=MAX_SPORTS)]
     capabilities: Annotated[
         list[CapabilityItem], Field(max_length=MAX_CAPABILITIES, repr=False)
@@ -229,6 +239,7 @@ class ProfilePut(BaseModel):
             is_visible=self.is_visible,
             latitude=self.latitude,
             longitude=self.longitude,
+            area_precision=self.area_precision,
             sports=tuple(SportEntry(item.sport, item.skill) for item in self.sports),
             capabilities=tuple(
                 CapabilityEntry(item.category, item.level, item.equipment)
@@ -249,6 +260,9 @@ class ProfilePublic(BaseModel):
     district_code: DistrictCode | None
     intensity: int
     sports: list[SportItem]
+    has_photo: bool = Field(
+        description="Whether GET /profiles/{id}/photo has a picture for the caller."
+    )
 
     @classmethod
     def from_domain(cls, profile: PublicProfile) -> Self:
@@ -263,13 +277,18 @@ class ProfilePublic(BaseModel):
             district_code=profile.district,
             intensity=profile.intensity,
             sports=[SportItem.model_validate(entry) for entry in profile.sports],
+            has_photo=profile.has_photo,
         )
 
 
 class ProfileOwner(ProfilePublic):
-    """What the owner sees: the public fields plus the private ones, still no location."""
+    """What the owner sees: the public fields plus the private ones, still no location.
+
+    ``area_precision`` says how coarse the stored area is; the area itself is not returned.
+    """
 
     is_visible: bool
+    area_precision: AreaPrecision
     functional_data_consent: bool
     functional_consent_at: datetime | None
     capabilities: list[CapabilityItem]
@@ -290,7 +309,9 @@ class ProfileOwner(ProfilePublic):
             district_code=profile.district,
             intensity=profile.intensity,
             sports=[SportItem.model_validate(entry) for entry in profile.sports],
+            has_photo=profile.has_photo,
             is_visible=profile.is_visible,
+            area_precision=profile.area_precision,
             functional_data_consent=profile.functional_consent_at is not None,
             functional_consent_at=profile.functional_consent_at,
             capabilities=[CapabilityItem.model_validate(entry) for entry in profile.capabilities],
@@ -298,3 +319,10 @@ class ProfileOwner(ProfilePublic):
             created_at=profile.created_at,
             updated_at=profile.updated_at,
         )
+
+
+class PhotoRejectedResponse(BaseModel):
+    """Body of the 422 answer to an upload that cannot be used as a photograph."""
+
+    detail: str
+    code: Literal["photo_invalid", "photo_too_large"]

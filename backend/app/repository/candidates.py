@@ -83,6 +83,7 @@ class _SessionCandidateSource:
                     is_visible=row.is_visible,
                 ),
                 display_name=row.display_name,
+                has_photo=row.photo_updated_at is not None,
             )
             for row in rows
         ]

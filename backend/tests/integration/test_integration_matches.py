@@ -13,6 +13,7 @@ ENDURANCE = {"category": "endurance", "level": 4}
 ITEM_KEYS = {
     "id",
     "display_name",
+    "has_photo",
     "district_code",
     "intensity",
     "sports",

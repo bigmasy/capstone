@@ -58,9 +58,10 @@ def constraint_names(engine: Engine) -> dict[str, set[str]]:
 def test_revision_ids_form_one_chain():
     script = ScriptDirectory(str(BACKEND_DIR / "migrations"))
 
-    assert script.get_heads() == ["0009_password_reset"]
+    assert script.get_heads() == ["0010_photo_and_area_precision"]
     chain = [rev.revision for rev in script.walk_revisions()]
     assert chain == [
+        "0010_photo_and_area_precision",
         "0009_password_reset",
         "0008_news_items",
         "0007_email_verification",

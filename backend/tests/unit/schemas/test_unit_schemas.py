@@ -226,7 +226,7 @@ def test_public_and_owner_models_expose_no_location():
         assert not {"latitude", "longitude", "area_lat", "area_lon", "cell"} & names
     assert {"capabilities", "contact"}.isdisjoint(ProfilePublic.model_fields)
     assert set(ProfilePublic.model_fields) == {
-        "id", "display_name", "district_code", "intensity", "sports",
+        "id", "display_name", "district_code", "intensity", "sports", "has_photo",
     }  # fmt: skip
 
 

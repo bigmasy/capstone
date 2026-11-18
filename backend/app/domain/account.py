@@ -9,7 +9,7 @@ from datetime import datetime
 from uuid import UUID
 
 from app.domain.errors import DomainError
-from app.domain.privacy import GridCell
+from app.domain.privacy import DEFAULT_PRECISION, AreaPrecision, GridCell
 from app.domain.profile import CapabilityEntry, SportEntry
 from app.domain.taxonomy import DistrictCode
 
@@ -91,6 +91,8 @@ class ProfileDraft:
     :param capabilities: Declared capabilities; kept only with consent.
     :param functional_data_consent: Whether the owner consents to storing capabilities.
     :param contact: Optional contact shown to a partner after an invitation is accepted.
+    :param area_precision: Grid the owner chose for the stored area, or None to keep the stored
+        choice (the default grid for a new profile).
     :raises ValueError: If only one of the two coordinates is given.
     """
 
@@ -104,6 +106,7 @@ class ProfileDraft:
     capabilities: tuple[CapabilityEntry, ...] = field(repr=False)
     functional_data_consent: bool
     contact: str | None = field(repr=False, default=None)
+    area_precision: AreaPrecision | None = None
 
     def __post_init__(self) -> None:
         """Reject half a location; the message names no value."""
@@ -125,6 +128,7 @@ class ProfileRecord:
     :param capabilities: Capabilities to store; empty without consent.
     :param functional_consent_at: When consent was given, or None.
     :param contact: Optional contact.
+    :param area_precision: Grid the cell belongs to; None together with a cell of None.
     """
 
     display_name: str
@@ -136,6 +140,7 @@ class ProfileRecord:
     capabilities: tuple[CapabilityEntry, ...] = field(repr=False)
     functional_consent_at: datetime | None
     contact: str | None = field(repr=False, default=None)
+    area_precision: AreaPrecision | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -154,6 +159,8 @@ class OwnerProfile:
     :param contact: Optional contact.
     :param created_at: Creation time (UTC).
     :param updated_at: Last change (UTC).
+    :param area_precision: Grid of the stored area; the area itself is never part of the record.
+    :param has_photo: Whether the owner uploaded a photograph.
     """
 
     id: UUID
@@ -168,6 +175,8 @@ class OwnerProfile:
     contact: str | None = field(repr=False)
     created_at: datetime
     updated_at: datetime
+    area_precision: AreaPrecision = DEFAULT_PRECISION
+    has_photo: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -179,6 +188,7 @@ class PublicProfile:
     :param district: Optional district.
     :param intensity: Preferred training intensity, 1 to 5.
     :param sports: Sports with skills, ordered by sport code.
+    :param has_photo: Whether the owner uploaded a photograph that the caller may load.
     """
 
     id: UUID
@@ -186,3 +196,4 @@ class PublicProfile:
     district: DistrictCode | None
     intensity: int
     sports: tuple[SportEntry, ...]
+    has_photo: bool = False
