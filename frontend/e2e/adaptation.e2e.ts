@@ -26,7 +26,7 @@ const TARGETS: Target[] = [
     path: "/profile",
     as: (w) => w.rich.token,
     prepare: async (page) => {
-      await page.getByLabel(uk.profile.location.place).selectOption("kyiv");
+      await page.getByRole("combobox", { name: uk.profile.location.place }).selectOption("kyiv");
       await expect(page.locator(".leaflet-container")).toBeVisible();
       await page.getByRole("button", { name: uk.profile.manage.deleteAll.trigger }).click();
     },

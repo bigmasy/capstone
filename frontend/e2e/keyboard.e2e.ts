@@ -112,7 +112,7 @@ test.describe("the location map", () => {
 
     // A native list is operated by the browser (type-ahead differs between platforms), so the
     // place is chosen directly; the map and the buttons after it are driven with keys
-    await page.getByLabel(uk.profile.location.place).selectOption("kyiv");
+    await page.getByRole("combobox", { name: uk.profile.location.place }).selectOption("kyiv");
     await expect(page.locator(".leaflet-container")).toBeVisible();
 
     const map = page.locator(".leaflet-container");

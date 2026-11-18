@@ -137,7 +137,7 @@ const STATES: PageState[] = [
     path: "/profile",
     as: (w) => w.bare.token,
     prepare: async (page) => {
-      await page.getByLabel(profile.location.place).selectOption("kyiv");
+      await page.getByRole("combobox", { name: profile.location.place }).selectOption("kyiv");
       await expect(page.locator(".leaflet-container")).toBeVisible();
       await expect(page.locator(".leaflet-marker-icon")).toBeVisible();
     },

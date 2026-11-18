@@ -97,7 +97,7 @@ test("onboarding: place from the gazetteer, map, rounded-area text, sports, cons
   await owner.getByRole("button", { name: text.sports.add }).click();
   await owner.getByLabel(text.sports.sport).nth(1).selectOption("cycling");
 
-  await owner.getByLabel(text.location.place).selectOption("kyiv");
+  await owner.getByRole("combobox", { name: text.location.place }).selectOption("kyiv");
   // The choice is confirmed in words, with the size of the area and never with a point
   await expect(owner.getByRole("radio", { name: new RegExp(`^${text.location.precision["4km"].name}`) })).toBeChecked();
   await expect(owner.locator("#main-content").getByText(text.location.chosen["4km"])).toBeVisible();
