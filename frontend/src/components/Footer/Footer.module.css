@@ -73,17 +73,3 @@
     min-height: 2rem;
   }
 }
-
-/* Credits of the photographs on the page; the licences ask for them */
-.credits {
-  grid-column: 1 / -1;
-  margin: 0;
-  padding-top: var(--space-3);
-  border-top: 0.0625rem solid var(--color-inverse-wash);
-  color: var(--color-on-inverse-muted);
-  font-size: var(--text-sm);
-}
-
-.credits a {
-  color: var(--color-inverse-link);
-}

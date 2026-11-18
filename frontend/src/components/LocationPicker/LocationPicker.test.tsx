@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
+import type { AreaPrecision } from "../../api/types";
 import { uk } from "../../i18n/uk";
 import type { LocationValue } from "../ProfileForm/profileValues";
 import LocationPicker from "./LocationPicker";
@@ -20,23 +21,40 @@ const text = uk.profile.location;
 
 interface HarnessProps {
   initial?: LocationValue | null;
+  initialPrecision?: AreaPrecision;
   optional?: boolean;
   error?: string;
 }
 
 /** Holds the value the way the form does and shows it, so a test can read what was chosen. */
-const Harness = ({ initial = null, optional = false, error }: HarnessProps) => {
+const Harness = ({
+  initial = null,
+  initialPrecision = "4km",
+  optional = false,
+  error,
+}: HarnessProps) => {
   const [value, setValue] = useState<LocationValue | null>(initial);
+  const [precision, setPrecision] = useState<AreaPrecision>(initialPrecision);
   return (
     <>
-      <LocationPicker value={value} onChange={setValue} optional={optional} error={error} />
+      <LocationPicker
+        value={value}
+        onChange={setValue}
+        precision={precision}
+        onPrecisionChange={setPrecision}
+        optional={optional}
+        error={error}
+      />
       <span data-testid="value">{value ? `${value.latitude};${value.longitude}` : "none"}</span>
+      <span data-testid="precision">{precision}</span>
     </>
   );
 };
 
 const chosen = () => screen.getByTestId("value").textContent;
 const placeSelect = () => screen.getByRole("combobox", { name: /^Місто або район/ });
+const size = (precision: AreaPrecision) =>
+  screen.getByRole("radio", { name: new RegExp(`^${text.precision[precision].name}`) });
 
 function stubGeolocation(
   behaviour: (ok: PositionCallback, fail: PositionErrorCallback) => void,
@@ -60,11 +78,7 @@ describe("LocationPicker", () => {
       expect(screen.queryByRole("group", { name: text.mapLabel })).toBeNull();
       expect(screen.getByRole("button", { name: text.showMap })).toHaveAttribute("aria-expanded", "false");
       expect(screen.getByText(text.mapNote)).toBeInTheDocument();
-      expect(text.mapNote).toBe(
-        "Карта завантажується з OpenStreetMap; сервер карт бачить лише ділянку карти, яку ви переглядаєте.",
-      );
-      expect(screen.getByText(text.areaNone)).toBeInTheDocument();
-      expect(screen.getByText(text.previewNote)).toBeInTheDocument();
+      expect(text.mapNote).toContain("сервер карт бачить лише ділянку карти, яку ви переглядаєте");
       expect(chosen()).toBe("none");
     });
 
@@ -81,11 +95,14 @@ describe("LocationPicker", () => {
       expect(options.indexOf("Житомир")).toBeLessThan(options.indexOf("Київ"));
     });
 
-    it("offers no direction buttons and no cancel button", () => {
+    it("offers no cancel button, no coordinates and no direction buttons", () => {
       render(<Harness />);
 
-      expect(screen.queryByRole("group", { name: text.nudgeLegend })).toBeNull();
       expect(screen.queryByRole("button", { name: text.clear })).toBeNull();
+      for (const name of ["Північ", "Південь", "Схід", "Захід"]) {
+        expect(screen.queryByRole("button", { name })).toBeNull();
+      }
+      expect(document.body).not.toHaveTextContent(/пн\. ш\.|сх\. д\./);
     });
 
     it("has no axe violations", async () => {
@@ -114,7 +131,7 @@ describe("LocationPicker", () => {
       expect(screen.getByRole("button", { name: text.showMap })).toHaveFocus();
     });
 
-    it("shows the attribution link, the keyboard help and the pointer help", async () => {
+    it("shows the attribution link and the pointer help", async () => {
       const user = userEvent.setup();
       render(<Harness />);
 
@@ -124,7 +141,6 @@ describe("LocationPicker", () => {
       const link = screen.getByRole("link", { name: "© OpenStreetMap contributors" });
       expect(link).toHaveAttribute("href", "https://www.openstreetmap.org/copyright");
       expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
-      expect(screen.getByText(text.mapKeyboardHint)).toBeInTheDocument();
       expect(screen.getByText(text.mapPointerHint)).toBeInTheDocument();
     });
 
@@ -170,39 +186,23 @@ describe("LocationPicker", () => {
     it("resets the list when the point is changed afterwards", async () => {
       const user = userEvent.setup();
       render(<Harness />);
-      await user.selectOptions(placeSelect(), "kyiv");
+      await user.selectOptions(placeSelect(), "lviv");
 
-      await user.click(await screen.findByRole("button", { name: text.north }));
+      await user.click(await screen.findByRole("button", { name: "Клік по карті" }));
 
       expect(placeSelect()).toHaveValue("");
     });
 
-    it("describes the area in words, with the nearest listed city", async () => {
+    it("confirms the choice in one short status line, without coordinates", async () => {
       const user = userEvent.setup();
       render(<Harness />);
 
       await user.selectOptions(placeSelect(), "kyiv");
 
-      const status = screen.getByText(/^Обрана ділянка/);
+      const status = screen.getByText(text.chosen["4km"]);
       expect(status).toHaveAttribute("role", "status");
-      expect(status).toHaveTextContent(
-        "Обрана ділянка: від 50.44° пн. ш. до 50.48° пн. ш. і від 30.48° сх. д. до 30.54° сх. д., приблизно 4 км × 4 км.",
-      );
-      expect(status).toHaveTextContent("Найближче місто зі списку: Київ, близько 1 км від центру ділянки.");
-      expect(screen.getByText(text.previewNote)).toBeInTheDocument();
-    });
-
-    it("words a centre that lies within a kilometre of a city centre differently", () => {
-      expect(text.nearest("Київ", 0)).toBe("Центр ділянки в межах 1 км від центру міста Київ.");
-      expect(text.nearest("Київ", 4)).toBe("Найближче місто зі списку: Київ, близько 4 км від центру ділянки.");
-    });
-
-    it("writes southern and western edges with their own suffix", () => {
-      render(<Harness initial={{ latitude: -33.86, longitude: -70.65 }} />);
-
-      expect(screen.getByText(/^Обрана ділянка/)).toHaveTextContent(
-        "від 33.88° пд. ш. до 33.84° пд. ш. і від 70.68° зх. д. до 70.62° зх. д.",
-      );
+      expect(document.body).not.toHaveTextContent("пн. ш.");
+      expect(document.body).not.toHaveTextContent("Найближче місто");
     });
 
     it("clears the area with the cancel button", async () => {
@@ -213,7 +213,7 @@ describe("LocationPicker", () => {
       await user.click(screen.getByRole("button", { name: text.clear }));
 
       expect(chosen()).toBe("none");
-      expect(screen.getByText(text.areaNone)).toBeInTheDocument();
+      expect(screen.queryByText(text.chosen["4km"])).toBeNull();
       expect(placeSelect()).toHaveValue("");
     });
 
@@ -227,48 +227,80 @@ describe("LocationPicker", () => {
     });
   });
 
-  describe("the direction buttons", () => {
-    it("move the area by exactly one cell", async () => {
-      const user = userEvent.setup();
-      render(<Harness initial={{ latitude: 50.46, longitude: 30.51 }} />);
+  describe("the size of the area", () => {
+    it("offers four sizes from a city or district down to about one kilometre, 4 km chosen", () => {
+      render(<Harness />);
 
-      const group = screen.getByRole("group", { name: text.nudgeLegend });
-      await user.click(within(group).getByRole("button", { name: text.north }));
-      expect(chosen()).toBe("50.5;30.51");
-      await user.click(within(group).getByRole("button", { name: text.east }));
-      expect(chosen()).toBe("50.5;30.57");
-      await user.click(within(group).getByRole("button", { name: text.south }));
-      await user.click(within(group).getByRole("button", { name: text.south }));
-      expect(chosen()).toBe("50.42;30.57");
-      await user.click(within(group).getByRole("button", { name: text.west }));
-      expect(chosen()).toBe("50.42;30.51");
+      const group = screen.getByRole("group", { name: text.precisionLegend });
+      const values = within(group)
+        .getAllByRole("radio")
+        .map((radio) => (radio as HTMLInputElement).value);
+      expect(values).toEqual(["place", "4km", "2km", "1km"]);
+      expect(size("4km")).toBeChecked();
     });
 
-    it("also react to the arrow keys while a direction button has the focus", async () => {
+    it.each([
+      { precision: "1km", cell: "50.455;30.5175" },
+      { precision: "2km", cell: "50.45;30.525" },
+      { precision: "4km", cell: "50.46;30.51" },
+    ] as const)("snaps a clicked point to the $precision grid", async ({ precision, cell }) => {
       const user = userEvent.setup();
-      render(<Harness initial={{ latitude: 50.46, longitude: 30.51 }} />);
-
-      screen.getByRole("button", { name: text.north }).focus();
-      await user.keyboard("{ArrowRight}");
-      expect(chosen()).toBe("50.46;30.57");
-      await user.keyboard("{ArrowUp}");
-      expect(chosen()).toBe("50.5;30.57");
-      await user.keyboard("{ArrowLeft}{ArrowLeft}");
-      expect(chosen()).toBe("50.5;30.45");
-      await user.keyboard("{ArrowDown}");
-      expect(chosen()).toBe("50.46;30.45");
-    });
-
-    it("keep the area on the grid and ask the open map to follow", async () => {
-      const user = userEvent.setup();
-      render(<Harness initial={{ latitude: 50.46, longitude: 30.51 }} />);
+      render(<Harness initialPrecision={precision} />);
       await user.click(screen.getByRole("button", { name: text.showMap }));
-      await screen.findByRole("group", { name: text.mapLabel });
 
-      await user.click(screen.getByRole("button", { name: text.east }));
+      await user.click(await screen.findByRole("button", { name: "Клік по карті" }));
 
-      expect(screen.getByTestId("stub-value")).toHaveTextContent("50.46;30.57");
-      expect(screen.getByTestId("stub-recenter")).toHaveTextContent("1");
+      expect(chosen()).toBe(cell);
+      expect(screen.getByTestId("stub-precision")).toHaveTextContent(precision);
+      expect(screen.getByText(text.chosen[precision])).toBeInTheDocument();
+    });
+
+    it("leaves only the list for a city or district: no map, no geolocation", async () => {
+      stubGeolocation(vi.fn());
+      const user = userEvent.setup();
+      render(<Harness />);
+
+      await user.click(size("place"));
+
+      expect(screen.getByTestId("precision")).toHaveTextContent("place");
+      expect(screen.queryByRole("button", { name: text.showMap })).toBeNull();
+      expect(screen.queryByRole("button", { name: text.useMyLocation })).toBeNull();
+      expect(placeSelect()).toHaveAccessibleDescription(new RegExp(text.placeOnlyHint));
+
+      await user.selectOptions(placeSelect(), "kyiv");
+
+      // Kyiv is listed at 50.450, 30.524; the coarsest grid puts it in the cell 50.44 / 30.54
+      expect(chosen()).toBe("50.44;30.54");
+      expect(screen.queryByRole("group", { name: text.mapLabel })).toBeNull();
+    });
+
+    it("snaps a place from the list again when the size changes, in either direction", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      await user.selectOptions(placeSelect(), "kyiv");
+      expect(chosen()).toBe("50.46;30.51");
+
+      await user.click(size("1km"));
+      expect(chosen()).toBe("50.455;30.5175");
+      expect(placeSelect()).toHaveValue("kyiv");
+
+      await user.click(size("place"));
+      expect(chosen()).toBe("50.44;30.54");
+      expect(placeSelect()).toHaveValue("kyiv");
+    });
+
+    it("makes a point from the map coarser in place and asks for it again when made finer", async () => {
+      const user = userEvent.setup();
+      render(<Harness initialPrecision="2km" />);
+      await user.click(screen.getByRole("button", { name: text.showMap }));
+      await user.click(await screen.findByRole("button", { name: "Клік по карті" }));
+      expect(chosen()).toBe("50.45;30.525");
+
+      await user.click(size("4km"));
+      expect(chosen()).toBe("50.46;30.51");
+
+      await user.click(size("1km"));
+      expect(chosen()).toBe("none");
     });
   });
 

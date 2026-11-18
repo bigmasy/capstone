@@ -2,6 +2,7 @@ import { useFormikContext } from "formik";
 import { uk } from "../../i18n/uk";
 import LocationPicker from "../LocationPicker/LocationPicker";
 import styles from "./ProfileForm.module.css";
+import type { AreaPrecision } from "../../api/types";
 import { useFieldError, type LocationValue, type ProfileFormValues } from "./profileValues";
 
 interface LocationFieldsetProps {
@@ -14,8 +15,8 @@ interface LocationFieldsetProps {
 const text = uk.profile.location;
 
 /**
- * The area the user trains around. It is chosen with the location picker; the page says
- * plainly that only the rounded area is stored, and the picker draws that area.
+ * The area the user trains around and how coarse it is. Both are chosen with the location
+ * picker; the page says plainly that only the rounded area is stored, and the picker draws it.
  */
 const LocationFieldset = ({ storedArea, optional = false }: LocationFieldsetProps) => {
   const { values, setFieldValue, setFieldTouched } = useFormikContext<ProfileFormValues>();
@@ -23,6 +24,11 @@ const LocationFieldset = ({ storedArea, optional = false }: LocationFieldsetProp
 
   const change = (next: LocationValue | null) => {
     void setFieldValue("location", next);
+    void setFieldTouched("location", true, false);
+  };
+
+  const changePrecision = (next: AreaPrecision) => {
+    void setFieldValue("area_precision", next);
     void setFieldTouched("location", true, false);
   };
 
@@ -38,6 +44,8 @@ const LocationFieldset = ({ storedArea, optional = false }: LocationFieldsetProp
       <LocationPicker
         value={values.location}
         onChange={change}
+        precision={values.area_precision}
+        onPrecisionChange={changePrecision}
         error={locationError}
         optional={optional}
       />

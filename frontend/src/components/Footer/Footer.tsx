@@ -1,9 +1,8 @@
-import { NavLink, useLocation } from "react-router";
+import { NavLink } from "react-router";
 import { uk } from "../../i18n/uk";
 import { selectIsLoggedIn } from "../../redux/auth/selectors";
 import { useAppSelector } from "../../redux/hooks";
 import Logo from "../Logo/Logo";
-import { PHOTO_PATHS } from "../Layout/photoPages";
 import styles from "./Footer.module.css";
 
 const visitorLinks = [
@@ -24,8 +23,6 @@ const memberLinks = [
 const Footer = () => {
   const isLoggedIn = useAppSelector(selectIsLoggedIn);
   const links = isLoggedIn ? memberLinks : visitorLinks;
-  // The credits belong to the photographs; a page without one has nothing to credit
-  const showCredits = PHOTO_PATHS.has(useLocation().pathname);
 
   return (
     <footer className={styles.footer}>
@@ -53,20 +50,6 @@ const Footer = () => {
           <h2 className={styles.heading}>{uk.footer.privacyHeading}</h2>
           <p className={styles.muted}>{uk.footer.note}</p>
         </div>
-        {showCredits && (
-          <p className={styles.credits} data-credits>
-            {uk.footer.photosLabel}{" "}
-            {uk.footer.photos.map((photo, index) => (
-              <span key={photo.href}>
-                {index > 0 && ", "}
-                <a href={photo.href} target="_blank" rel="noreferrer">
-                  {photo.author}
-                </a>{" "}
-                ({photo.licence})
-              </span>
-            ))}
-          </p>
-        )}
       </div>
     </footer>
   );

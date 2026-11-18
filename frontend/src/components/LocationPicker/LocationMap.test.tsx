@@ -182,17 +182,16 @@ describe("LocationMap", () => {
     window.matchMedia = originalMatchMedia;
   });
 
-  it("renders a labelled group that holds the map and can be described by the area text", () => {
-    render(<LocationMap value={null} onPick={vi.fn()} recenterKey={0} describedBy="area" />);
+  it("renders a labelled group that holds the map", () => {
+    render(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={0} />);
 
     const group = screen.getByRole("group", { name: text.mapLabel });
-    expect(group).toHaveAttribute("aria-describedby", "area");
     expect(lastOf<FakeMap>(recorded.maps).container).toBe(group);
   });
 
   it("starts on Ukraine with keyboard control and no animation under reduced motion", () => {
     setReducedMotion(true);
-    render(<LocationMap value={null} onPick={vi.fn()} recenterKey={0} />);
+    render(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={0} />);
 
     const { options } = lastOf<FakeMap>(recorded.maps);
     expect(options).toMatchObject({
@@ -206,7 +205,7 @@ describe("LocationMap", () => {
   });
 
   it("labels the zoom buttons in Ukrainian instead of Leaflet's English defaults", () => {
-    render(<LocationMap value={null} onPick={vi.fn()} recenterKey={0} />);
+    render(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={0} />);
 
     expect(lastOf<FakeMap>(recorded.maps).options).toMatchObject({ zoomControl: false });
     const zoom = recorded.controls.find((control) => control.kind === "zoom");
@@ -217,7 +216,7 @@ describe("LocationMap", () => {
   });
 
   it("drops the English Leaflet prefix from the attribution and keeps the map credit", () => {
-    render(<LocationMap value={null} onPick={vi.fn()} recenterKey={0} />);
+    render(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={0} />);
 
     expect(lastOf<FakeMap>(recorded.maps).options).toMatchObject({ attributionControl: false });
     const attribution = recorded.controls.find((control) => control.kind === "attribution");
@@ -226,19 +225,19 @@ describe("LocationMap", () => {
   });
 
   it("animates when the user has no motion preference", () => {
-    render(<LocationMap value={null} onPick={vi.fn()} recenterKey={0} />);
+    render(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={0} />);
 
     expect(lastOf<FakeMap>(recorded.maps).options).toMatchObject({ zoomAnimation: true, fadeAnimation: true });
   });
 
   it("starts on the chosen area when there is one", () => {
-    render(<LocationMap value={centre} onPick={vi.fn()} recenterKey={0} />);
+    render(<LocationMap precision="4km" value={centre} onPick={vi.fn()} recenterKey={0} />);
 
     expect(lastOf<FakeMap>(recorded.maps).options).toMatchObject({ center: [50.46, 30.51], zoom: 11 });
   });
 
   it("loads OpenStreetMap tiles from the single allowed host with a linked attribution", () => {
-    render(<LocationMap value={null} onPick={vi.fn()} recenterKey={0} />);
+    render(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={0} />);
 
     const tile = lastOf<FakeTileLayer>(recorded.tiles);
     expect(tile.url).toBe("https://tile.openstreetmap.org/{z}/{x}/{y}.png");
@@ -249,7 +248,7 @@ describe("LocationMap", () => {
   });
 
   it("draws nothing before an area is chosen", () => {
-    render(<LocationMap value={null} onPick={vi.fn()} recenterKey={0} />);
+    render(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={0} />);
 
     expect(recorded.rectangles).toHaveLength(0);
     expect(recorded.markers).toHaveLength(0);
@@ -257,7 +256,7 @@ describe("LocationMap", () => {
 
   describe("the privacy preview", () => {
     it("draws the exact cell that is stored, not interactive, with the class from the stylesheet", () => {
-      render(<LocationMap value={centre} onPick={vi.fn()} recenterKey={0} />);
+      render(<LocationMap precision="4km" value={centre} onPick={vi.fn()} recenterKey={0} />);
 
       const area = lastOf<FakeRectangle>(recorded.rectangles);
       expect(area.bounds).toEqual([
@@ -269,8 +268,47 @@ describe("LocationMap", () => {
       expect(area.options.className).not.toBe("");
     });
 
+    it.each([
+      { precision: "1km", south: 50.45, north: 50.46, west: 30.51, east: 30.525, zoom: 13 },
+      { precision: "2km", south: 50.44, north: 50.46, west: 30.51, east: 30.54, zoom: 12 },
+      { precision: "place", south: 50.4, north: 50.48, west: 30.48, east: 30.6, zoom: 10 },
+    ] as const)(
+      "draws the cell of the $precision grid and starts at a zoom that fits it",
+      ({ precision, south, north, west, east, zoom }) => {
+        render(
+          <LocationMap
+            precision={precision}
+            value={{ latitude: 50.4501, longitude: 30.5236 }}
+            onPick={vi.fn()}
+            recenterKey={0}
+          />,
+        );
+
+        expect(lastOf<FakeRectangle>(recorded.rectangles).bounds).toEqual([
+          [south, west],
+          [north, east],
+        ]);
+        expect(lastOf<FakeMap>(recorded.maps).options).toMatchObject({ zoom });
+      },
+    );
+
+    it("redraws the area when only its size changes", () => {
+      const value = { latitude: 50.46, longitude: 30.51 };
+      const { rerender } = render(
+        <LocationMap precision="4km" value={value} onPick={vi.fn()} recenterKey={0} />,
+      );
+      const area = lastOf<FakeRectangle>(recorded.rectangles);
+
+      rerender(<LocationMap precision="1km" value={value} onPick={vi.fn()} recenterKey={0} />);
+
+      expect(area.setBounds).toHaveBeenLastCalledWith([
+        [50.46, 30.51],
+        [50.47, 30.525],
+      ]);
+    });
+
     it("draws the cell of a value even when it is not exactly a centre", () => {
-      render(<LocationMap value={{ latitude: 50.4501, longitude: 30.5236 }} onPick={vi.fn()} recenterKey={0} />);
+      render(<LocationMap precision="4km" value={{ latitude: 50.4501, longitude: 30.5236 }} onPick={vi.fn()} recenterKey={0} />);
 
       expect(lastOf<FakeRectangle>(recorded.rectangles).bounds).toEqual([
         [50.44, 30.48],
@@ -279,7 +317,7 @@ describe("LocationMap", () => {
     });
 
     it("puts a draggable marker with bundled icons at the centre of the cell", () => {
-      render(<LocationMap value={centre} onPick={vi.fn()} recenterKey={0} />);
+      render(<LocationMap precision="4km" value={centre} onPick={vi.fn()} recenterKey={0} />);
 
       const pin = lastOf<FakeMarker>(recorded.markers);
       expect(pin.latlng).toEqual([50.46, 30.51]);
@@ -292,11 +330,11 @@ describe("LocationMap", () => {
     });
 
     it("moves the rectangle and the marker when the value changes and removes both when it is cleared", () => {
-      const { rerender } = render(<LocationMap value={centre} onPick={vi.fn()} recenterKey={0} />);
+      const { rerender } = render(<LocationMap precision="4km" value={centre} onPick={vi.fn()} recenterKey={0} />);
       const area = lastOf<FakeRectangle>(recorded.rectangles);
       const pin = lastOf<FakeMarker>(recorded.markers);
 
-      rerender(<LocationMap value={{ latitude: 50.5, longitude: 30.51 }} onPick={vi.fn()} recenterKey={0} />);
+      rerender(<LocationMap precision="4km" value={{ latitude: 50.5, longitude: 30.51 }} onPick={vi.fn()} recenterKey={0} />);
 
       expect(area.bounds).toEqual([
         [50.48, 30.48],
@@ -306,16 +344,16 @@ describe("LocationMap", () => {
       expect(recorded.rectangles).toHaveLength(1);
       expect(recorded.markers).toHaveLength(1);
 
-      rerender(<LocationMap value={null} onPick={vi.fn()} recenterKey={0} />);
+      rerender(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={0} />);
 
       expect(area.removed).toBe(true);
       expect(pin.removed).toBe(true);
     });
 
     it("draws the layers when a value arrives after the first render", () => {
-      const { rerender } = render(<LocationMap value={null} onPick={vi.fn()} recenterKey={0} />);
+      const { rerender } = render(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={0} />);
 
-      rerender(<LocationMap value={centre} onPick={vi.fn()} recenterKey={0} />);
+      rerender(<LocationMap precision="4km" value={centre} onPick={vi.fn()} recenterKey={0} />);
 
       expect(recorded.rectangles).toHaveLength(1);
       expect(recorded.markers).toHaveLength(1);
@@ -325,7 +363,7 @@ describe("LocationMap", () => {
   describe("picking a point", () => {
     it("reports a click, wrapped into the valid longitude range", () => {
       const onPick = vi.fn();
-      render(<LocationMap value={null} onPick={onPick} recenterKey={0} />);
+      render(<LocationMap precision="4km" value={null} onPick={onPick} recenterKey={0} />);
 
       click(lastOf<FakeMap>(recorded.maps), 50.4517, 30.5249);
       click(lastOf<FakeMap>(recorded.maps), 10, 190);
@@ -337,9 +375,9 @@ describe("LocationMap", () => {
     it("always calls the latest onPick, also after a re-render", () => {
       const first = vi.fn();
       const second = vi.fn();
-      const { rerender } = render(<LocationMap value={null} onPick={first} recenterKey={0} />);
+      const { rerender } = render(<LocationMap precision="4km" value={null} onPick={first} recenterKey={0} />);
 
-      rerender(<LocationMap value={null} onPick={second} recenterKey={0} />);
+      rerender(<LocationMap precision="4km" value={null} onPick={second} recenterKey={0} />);
       click(lastOf<FakeMap>(recorded.maps), 49, 24);
 
       expect(first).not.toHaveBeenCalled();
@@ -348,7 +386,7 @@ describe("LocationMap", () => {
 
     it("shows the cell under the marker while dragging and reports the drop", () => {
       const onPick = vi.fn();
-      render(<LocationMap value={centre} onPick={onPick} recenterKey={0} />);
+      render(<LocationMap precision="4km" value={centre} onPick={onPick} recenterKey={0} />);
       const pin = lastOf<FakeMarker>(recorded.markers);
       const area = lastOf<FakeRectangle>(recorded.rectangles);
 
@@ -368,11 +406,11 @@ describe("LocationMap", () => {
 
   describe("recentring", () => {
     it("does nothing on the first render and moves the view when the key changes", () => {
-      const { rerender } = render(<LocationMap value={centre} onPick={vi.fn()} recenterKey={0} />);
+      const { rerender } = render(<LocationMap precision="4km" value={centre} onPick={vi.fn()} recenterKey={0} />);
       const map = lastOf<FakeMap>(recorded.maps);
       expect(map.setView).not.toHaveBeenCalled();
 
-      rerender(<LocationMap value={{ latitude: 49.86, longitude: 24.03 }} onPick={vi.fn()} recenterKey={1} />);
+      rerender(<LocationMap precision="4km" value={{ latitude: 49.86, longitude: 24.03 }} onPick={vi.fn()} recenterKey={1} />);
 
       expect(map.setView).toHaveBeenCalledTimes(1);
       expect(map.setView).toHaveBeenCalledWith([49.86, 24.03], 11, { animate: true });
@@ -380,26 +418,26 @@ describe("LocationMap", () => {
 
     it("keeps a zoom that is already closer and skips the animation under reduced motion", () => {
       setReducedMotion(true);
-      const { rerender } = render(<LocationMap value={centre} onPick={vi.fn()} recenterKey={0} />);
+      const { rerender } = render(<LocationMap precision="4km" value={centre} onPick={vi.fn()} recenterKey={0} />);
       const map = lastOf<FakeMap>(recorded.maps);
       map.zoom = 15;
 
-      rerender(<LocationMap value={centre} onPick={vi.fn()} recenterKey={2} />);
+      rerender(<LocationMap precision="4km" value={centre} onPick={vi.fn()} recenterKey={2} />);
 
       expect(map.setView).toHaveBeenCalledWith([50.46, 30.51], 15, { animate: false });
     });
 
     it("does not move when there is no value to move to", () => {
-      const { rerender } = render(<LocationMap value={null} onPick={vi.fn()} recenterKey={0} />);
+      const { rerender } = render(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={0} />);
 
-      rerender(<LocationMap value={null} onPick={vi.fn()} recenterKey={1} />);
+      rerender(<LocationMap precision="4km" value={null} onPick={vi.fn()} recenterKey={1} />);
 
       expect(lastOf<FakeMap>(recorded.maps).setView).not.toHaveBeenCalled();
     });
   });
 
   it("destroys the map when it is unmounted, so no handler or tile request remains", () => {
-    const { unmount } = render(<LocationMap value={centre} onPick={vi.fn()} recenterKey={0} />);
+    const { unmount } = render(<LocationMap precision="4km" value={centre} onPick={vi.fn()} recenterKey={0} />);
     const map = lastOf<FakeMap>(recorded.maps);
 
     unmount();

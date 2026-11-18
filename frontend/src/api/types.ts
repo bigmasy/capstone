@@ -29,6 +29,7 @@ export type SkillLevel = Schemas["SkillLevel"];
 export type CategoryCode = Schemas["CategoryCode"];
 export type EquipmentCode = Schemas["EquipmentCode"];
 export type DistrictCode = Schemas["DistrictCode"];
+export type AreaPrecision = Schemas["AreaPrecision"];
 
 export type ValidationIssue = Schemas["ValidationError"];
 

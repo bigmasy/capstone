@@ -157,12 +157,14 @@ test.describe("the location map", () => {
     }
     expect(reached, "the save button is reachable after the map").toBe(true);
 
-    // The direction buttons move the area by one cell with the arrow keys as well
-    const status = page.locator("#main-content").getByText(/Обрана ділянка/);
-    const before = await status.innerText();
-    await page.getByRole("button", { name: uk.profile.location.north }).focus();
-    await page.keyboard.press("ArrowRight");
-    await expect(status).not.toHaveText(before);
+    // The size of the area is one group of radio buttons: the arrow keys move the choice, and a
+    // city or district alone leaves no map to pass through
+    const place = uk.profile.location.precision.place.name;
+    await page.getByRole("radio", { name: new RegExp(`^${uk.profile.location.precision["4km"].name}`) }).focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.getByRole("radio", { name: new RegExp(`^${place}`) })).toBeChecked();
+    await expect(page.getByRole("button", { name: uk.profile.location.hideMap })).toHaveCount(0);
+    await expect(page.locator(".leaflet-container")).toHaveCount(0);
   });
 });
 

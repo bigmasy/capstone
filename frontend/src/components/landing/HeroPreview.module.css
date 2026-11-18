@@ -1,20 +1,16 @@
 /* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
 .wrap {
-  position: relative;
-  padding-bottom: 4.5rem;
+  display: grid;
+  gap: var(--space-3);
 }
 
+/* Sits under the card, as wide as the card: it neither covers the card nor hangs outside it */
 .privacy {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  width: 21rem;
-  max-width: calc(100% - var(--space-3));
-  margin: 0 0 0 calc(var(--space-4) * -1);
-  padding: var(--space-3);
-  position: absolute;
-  bottom: 0;
-  left: 0;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
   border: 0.0625rem solid var(--color-separator);
   border-radius: var(--radius-lg);
   background: var(--color-card);
@@ -63,6 +59,13 @@
   font-weight: 600;
 }
 
+.who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
 .name {
   margin: 0;
   font-size: var(--text-lg);
@@ -70,7 +73,7 @@
 }
 
 .place {
-  margin: var(--space-1) 0 var(--space-3);
+  margin: var(--space-1) 0 0;
   color: var(--color-text-muted);
 }
 

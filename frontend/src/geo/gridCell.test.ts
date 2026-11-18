@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_PRECISION,
+  GRID_STEPS,
   LAT_STEP,
   LON_STEP,
+  PRECISION_ORDER,
   distanceKm,
-  neighbourCell,
+  isCoarser,
   snapToCell,
-  type Direction,
 } from "./gridCell";
 
 /*
@@ -162,50 +164,48 @@ describe("snapToCell", () => {
   });
 });
 
-describe("neighbourCell", () => {
-  const start = snapToCell(50.45, 30.5236);
-
-  it.each<[Direction, Partial<typeof start>]>([
-    ["north", { latitude: 50.5, longitude: 30.51 }],
-    ["south", { latitude: 50.42, longitude: 30.51 }],
-    ["east", { latitude: 50.46, longitude: 30.57 }],
-    ["west", { latitude: 50.46, longitude: 30.45 }],
-  ])("moves one cell to the %s", (direction, centre) => {
-    const next = neighbourCell(start, direction);
-
-    expect(next).toMatchObject(centre);
-    expect(snapToCell(next.latitude, next.longitude)).toEqual(next);
+describe("the grids of other sizes", () => {
+  // Golden values produced by the server: coarsen(50.4501, 30.5234, precision)
+  it.each([
+    { precision: "1km", latitude: 50.455, longitude: 30.5175 },
+    { precision: "2km", latitude: 50.45, longitude: 30.525 },
+    { precision: "4km", latitude: 50.46, longitude: 30.51 },
+    { precision: "place", latitude: 50.44, longitude: 30.54 },
+  ] as const)("snaps to the $precision grid exactly as the server", ({ precision, latitude, longitude }) => {
+    expect(snapToCell(50.4501, 30.5234, precision)).toMatchObject({ latitude, longitude });
   });
 
-  it("touches the old cell along one edge", () => {
-    expect(neighbourCell(start, "north").south).toBe(start.north);
-    expect(neighbourCell(start, "south").north).toBe(start.south);
-    expect(neighbourCell(start, "east").west).toBe(start.east);
-    expect(neighbourCell(start, "west").east).toBe(start.west);
+  it("uses the 4 km grid when no size is given", () => {
+    expect(DEFAULT_PRECISION).toBe("4km");
+    expect(snapToCell(50.4501, 30.5234)).toEqual(snapToCell(50.4501, 30.5234, "4km"));
+    expect(GRID_STEPS["4km"]).toEqual([LAT_STEP, LON_STEP]);
   });
 
-  it("returns to the start after a step and the opposite step, across the equator and the meridian", () => {
-    const opposite: Record<Direction, Direction> = {
-      north: "south",
-      south: "north",
-      east: "west",
-      west: "east",
-    };
-    for (const cell of [start, snapToCell(-0.001, -0.001), snapToCell(0.001, 0.001)]) {
-      for (const direction of ["north", "south", "east", "west"] as const) {
-        expect(neighbourCell(neighbourCell(cell, direction), opposite[direction])).toEqual(cell);
-      }
+  it("doubles the step from each grid to the next", () => {
+    for (let index = 1; index < PRECISION_ORDER.length; index += 1) {
+      const finer = GRID_STEPS[PRECISION_ORDER[index - 1]!];
+      const coarser = GRID_STEPS[PRECISION_ORDER[index]!];
+      expect(coarser[0]).toBeCloseTo(2 * finer[0], 12);
+      expect(coarser[1]).toBeCloseTo(2 * finer[1], 12);
+      expect(isCoarser(PRECISION_ORDER[index]!, PRECISION_ORDER[index - 1]!)).toBe(true);
+      expect(isCoarser(PRECISION_ORDER[index - 1]!, PRECISION_ORDER[index]!)).toBe(false);
     }
+    expect(isCoarser("2km", "2km")).toBe(false);
   });
 
-  it("stays in the last cell at the edge of the globe", () => {
-    const corner = snapToCell(90, 180);
-    const opposite = snapToCell(-90, -180);
-
-    expect(neighbourCell(corner, "north")).toEqual(corner);
-    expect(neighbourCell(corner, "east")).toEqual(corner);
-    expect(neighbourCell(opposite, "south")).toEqual(opposite);
-    expect(neighbourCell(opposite, "west")).toEqual(opposite);
+  it("is nested: the centre of a cell snaps to the larger cell of the original point", () => {
+    for (let step = 0; step < 400; step += 1) {
+      const latitude = -70 + step * 0.3517;
+      const longitude = -170 + step * 0.8513;
+      PRECISION_ORDER.forEach((finer, index) => {
+        const stored = snapToCell(latitude, longitude, finer);
+        for (const coarser of PRECISION_ORDER.slice(index + 1)) {
+          expect(snapToCell(stored.latitude, stored.longitude, coarser)).toEqual(
+            snapToCell(latitude, longitude, coarser),
+          );
+        }
+      });
+    }
   });
 });
 

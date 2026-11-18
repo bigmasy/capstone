@@ -57,48 +57,86 @@
   fill-opacity: 0.2;
 }
 
-.preview {
-  padding: var(--space-2);
-  background: var(--color-surface);
-  border-left: 0.25rem solid var(--color-primary);
+.chosen {
+  margin: 0;
+  font-weight: 600;
 }
 
-.previewNote {
-  margin-top: var(--space-1);
+.chosen:empty {
+  display: none;
 }
 
-/* Compass layout of the direction buttons: north on top, west and east beside, south below */
-.compass {
-  display: grid;
-  grid-template-columns: repeat(3, auto);
-  grid-template-areas:
-    ". north ."
-    "west . east"
-    ". south .";
-  gap: var(--space-1);
-  justify-content: start;
+.sizes {
   margin: 0;
   padding: 0;
   border: 0;
+  min-width: 0;
 }
 
-.compass legend {
+.sizes legend {
   padding: 0;
   font-weight: 600;
 }
 
-.north {
-  grid-area: north;
+/* Two by two, so the four sizes never break into three and one */
+.sizeList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
-.south {
-  grid-area: south;
+@media (max-width: 26rem) {
+  .sizeList {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-.east {
-  grid-area: east;
+@media (min-width: 62rem) {
+  .sizeList {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
-.west {
-  grid-area: west;
+.size {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: start;
+  column-gap: var(--space-2);
+  row-gap: 0.125rem;
+  min-height: 2.75rem;
+  padding: var(--space-3);
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-card);
+  cursor: pointer;
+}
+
+.size:has(input:checked) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-on-primary-soft);
+  box-shadow: inset 0 0 0 0.0625rem var(--color-primary);
+}
+
+.size:has(input:focus-visible) {
+  outline: 0.1875rem solid var(--color-focus);
+  outline-offset: 0.125rem;
+}
+
+.size input {
+  grid-row: 1 / span 2;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0.1875rem 0 0;
+  accent-color: var(--color-primary);
+}
+
+.sizeName {
+  font-weight: 600;
+}
+
+.sizeNote {
+  grid-column: 2;
+  font-size: var(--text-sm);
 }

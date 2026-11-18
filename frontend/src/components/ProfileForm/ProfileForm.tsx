@@ -49,7 +49,11 @@ const ProfileForm = ({ taxonomy, profile }: ProfileFormProps) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const hasProfile = profile !== undefined;
-  const schema = useMemo(() => buildProfileSchema(taxonomy, hasProfile), [taxonomy, hasProfile]);
+  const storedPrecision = profile?.area_precision;
+  const schema = useMemo(
+    () => buildProfileSchema(taxonomy, hasProfile, storedPrecision),
+    [taxonomy, hasProfile, storedPrecision],
+  );
   const initialValues = useMemo(() => buildInitialValues(profile), [profile]);
 
   // Only what the API returns about the location: the district, never a position

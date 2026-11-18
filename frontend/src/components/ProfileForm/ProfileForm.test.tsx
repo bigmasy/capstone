@@ -136,6 +136,11 @@ describe("ProfileForm", () => {
       expect(screen.getByRole("button", { name: text.sports.remove(1) })).toHaveFocus();
       await user.tab();
       expect(screen.getByRole("button", { name: text.sports.add })).toHaveFocus();
+      // The sizes of the area are one stop: the arrow keys move between them
+      await user.tab();
+      expect(
+        screen.getByRole("radio", { name: new RegExp(`^${text.location.precision["4km"].name}`) }),
+      ).toHaveFocus();
       await user.tab();
       expect(placeSelect()).toHaveFocus();
       await user.selectOptions(placeSelect(), "kyiv");
@@ -147,16 +152,8 @@ describe("ProfileForm", () => {
       expect(screen.getByRole("button", { name: "Клік по карті" })).toHaveFocus();
       await user.tab();
       expect(screen.getByRole("link", { name: text.location.attribution })).toHaveFocus();
-      for (const label of [
-        text.location.north,
-        text.location.west,
-        text.location.east,
-        text.location.south,
-        text.location.clear,
-      ]) {
-        await user.tab();
-        expect(screen.getByRole("button", { name: label })).toHaveFocus();
-      }
+      await user.tab();
+      expect(screen.getByRole("button", { name: text.location.clear })).toHaveFocus();
       await user.tab();
       expect(field("textbox", /^Контакт для зв’язку/)).toHaveFocus();
       await user.keyboard("{Enter}");
@@ -271,6 +268,7 @@ describe("ProfileForm", () => {
           is_visible: false,
           latitude: 50.46,
           longitude: 30.51,
+          area_precision: "4km",
           sports: [{ sport: "swimming", skill: "advanced" }],
           capabilities: [],
           functional_data_consent: false,
@@ -481,7 +479,7 @@ describe("ProfileForm", () => {
 
       const group = screen.getByRole("group", { name: text.location.legend });
       expect(within(group).getByText(text.location.explanation)).toBeInTheDocument();
-      expect(text.location.explanation).toMatch(/4 км × 4 км/);
+      expect(text.location.explanation).toMatch(/розмір цієї ділянки ви обираєте самі/);
       expect(text.location.explanation).toMatch(/Точні координати не зберігаються/);
     });
 
@@ -504,6 +502,55 @@ describe("ProfileForm", () => {
       const [body] = (await bodiesSentTo(fetchMock, "PUT /profiles/me")) as Record<string, unknown>[];
       // Kyiv is listed at 50.450, 30.524; the cell around it has its centre at 50.46, 30.51
       expect(body).toMatchObject({ latitude: 50.46, longitude: 30.51 });
+    });
+
+    it("sends the chosen size of the area and the centre of a cell of that size", async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, makeProfile({ area_precision: "1km" })));
+      const user = userEvent.setup();
+      renderForm();
+
+      await fillBasics(user);
+      await user.click(
+        screen.getByRole("radio", { name: new RegExp(`^${text.location.precision["1km"].name}`) }),
+      );
+      await user.click(submitButton());
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const [body] = (await bodiesSentTo(fetchMock, "PUT /profiles/me")) as Record<string, unknown>[];
+      expect(body).toMatchObject({ area_precision: "1km", latitude: 50.455, longitude: 30.5175 });
+    });
+
+    it("asks for the place again when a stored area is made smaller", async () => {
+      const user = userEvent.setup();
+      renderForm(makeProfile({ area_precision: "4km" }));
+
+      await user.click(
+        screen.getByRole("radio", { name: new RegExp(`^${text.location.precision["2km"].name}`) }),
+      );
+      await user.click(submitButton());
+
+      await waitFor(() =>
+        expect(placeSelect()).toHaveAccessibleDescription(
+          new RegExp(text.location.finerNeedsPlace),
+        ),
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("makes a stored area larger without asking for the place", async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, makeProfile({ area_precision: "place" })));
+      const user = userEvent.setup();
+      renderForm(makeProfile({ area_precision: "4km" }));
+
+      await user.click(
+        screen.getByRole("radio", { name: new RegExp(`^${text.location.precision.place.name}`) }),
+      );
+      await user.click(submitButton());
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const [body] = (await bodiesSentTo(fetchMock, "PUT /profiles/me")) as Record<string, unknown>[];
+      expect(body).toMatchObject({ area_precision: "place" });
+      expect(body).not.toHaveProperty("latitude");
     });
 
     it("sends the centre of the cell of a clicked point, never the clicked point", async () => {
@@ -535,7 +582,9 @@ describe("ProfileForm", () => {
 
       const toastText = await screen.findByText(text.saved);
       expect(toastText.closest('[role="status"]')).not.toBeNull();
-      await waitFor(() => expect(screen.getByText(text.location.areaNone)).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.queryByText(text.location.chosen["4km"])).toBeNull(),
+      );
       expect(placeSelect()).toHaveValue("");
       expect(document.body).not.toHaveTextContent(/50\.4\d/);
     });
@@ -641,7 +690,7 @@ describe("ProfileForm", () => {
       expect(within(group).getByText("Збережений район: Київ, Оболонський.")).toBeInTheDocument();
       expect(within(group).getByText(text.location.keepStored, { exact: false })).toBeInTheDocument();
       expect(placeSelect()).toHaveValue("");
-      expect(screen.getByText(text.location.areaNone)).toBeInTheDocument();
+      expect(screen.queryByText(text.location.chosen["4km"])).toBeNull();
     });
 
     it("says so when the stored profile has no district", () => {

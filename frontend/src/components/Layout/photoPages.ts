@@ -5,6 +5,3 @@ export const AUTH_PATHS: ReadonlySet<string> = new Set([
   "/forgot-password",
   "/reset-password",
 ]);
-
-/** Pages that show a photograph; the licences ask for a credit exactly there. */
-export const PHOTO_PATHS: ReadonlySet<string> = new Set(["/", "/about", ...AUTH_PATHS]);

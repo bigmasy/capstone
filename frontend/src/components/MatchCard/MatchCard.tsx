@@ -1,6 +1,7 @@
 import { useId } from "react";
 import type { MatchItem, MatchMaxPoints } from "../../api/types";
 import { uk } from "../../i18n/uk";
+import Avatar from "../Avatar/Avatar";
 import InviteAction from "../InviteAction/InviteAction";
 import PartnerFacts from "../PartnerFacts/PartnerFacts";
 import MatchExplanation from "./MatchExplanation";
@@ -29,9 +30,12 @@ const MatchCard = ({ match, maxPoints, version, invited, onInvited }: MatchCardP
   return (
     <li>
       <article className={styles.card} aria-labelledby={headingId}>
-        <h3 className={styles.name} id={headingId}>
-          {match.display_name}
-        </h3>
+        <div className={styles.head}>
+          <Avatar profileId={match.id} name={match.display_name} hasPhoto={match.has_photo} />
+          <h3 className={styles.name} id={headingId}>
+            {match.display_name}
+          </h3>
+        </div>
         <PartnerFacts partner={match} version={version}>
           <div>
             <dt>{text.distance}</dt>

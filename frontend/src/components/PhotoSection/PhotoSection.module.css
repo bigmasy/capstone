@@ -1,0 +1,48 @@
+/* Hallmark · genre: modern-minimal · theme: Dose (by request) · redesign: full · the full stamp is in styles/tokens.css */
+.section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: 0.0625rem solid var(--color-separator);
+  border-radius: var(--radius-xl);
+  background: var(--color-card);
+}
+
+.body {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.note {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.status,
+.failed {
+  margin: var(--space-3) 0 0;
+  font-weight: 600;
+}
+
+.status:empty,
+.failed:empty {
+  display: none;
+}
+
+.failed {
+  color: var(--color-error);
+}

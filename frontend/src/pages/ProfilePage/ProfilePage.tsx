@@ -1,5 +1,6 @@
 import AccountActions from "../../components/AccountActions/AccountActions";
 import Loader from "../../components/Loader/Loader";
+import PhotoSection from "../../components/PhotoSection/PhotoSection";
 import ProfileForm from "../../components/ProfileForm/ProfileForm";
 import { uk } from "../../i18n/uk";
 import {
@@ -53,6 +54,13 @@ const ProfilePage = () => {
             <h2 id="onboarding-heading">{uk.profile.onboarding.title}</h2>
             <p>{uk.profile.onboarding.lead}</p>
           </section>
+        )}
+        {stored && (
+          <PhotoSection
+            profileId={stored.id}
+            name={stored.display_name}
+            hasPhoto={stored.has_photo}
+          />
         )}
         <ProfileForm taxonomy={taxonomy.data} profile={stored} />
         <AccountActions />

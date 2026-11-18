@@ -16,6 +16,7 @@ import markerRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
 import markerUrl from "leaflet/dist/images/marker-icon.png";
 import markerShadowUrl from "leaflet/dist/images/marker-shadow.png";
 import { useEffect, useRef } from "react";
+import type { AreaPrecision } from "../../api/types";
 import { snapToCell } from "../../geo/gridCell";
 import { uk } from "../../i18n/uk";
 import type { LocationValue } from "../ProfileForm/profileValues";
@@ -29,22 +30,22 @@ const TILE_MAX_ZOOM = 19;
 /** Roughly the middle of Ukraine, shown before an area is chosen. */
 const START_CENTRE: [number, number] = [48.6, 31.2];
 const START_ZOOM = 6;
-/** A zoom at which a cell of about 4 km fills a useful part of the map. */
-const AREA_ZOOM = 11;
+/** The zoom at which a cell of each grid fills a useful part of the map. */
+const AREA_ZOOM: Record<AreaPrecision, number> = { "1km": 13, "2km": 12, "4km": 11, place: 10 };
 
 interface LocationMapProps {
   /** The chosen area (cell centre), or null before one is chosen. */
   value: LocationValue | null;
+  /** The grid of the area: it sets the size of the rectangle that is drawn. */
+  precision: AreaPrecision;
   /** The user clicked the map or dropped the marker; the exact point is for the caller to snap. */
   onPick: (latitude: number, longitude: number) => void;
   /** Changes whenever the map should move to the chosen area (list, geolocation, direction). */
   recenterKey: number;
-  /** Id of the text that describes the chosen area, for the map's accessible description. */
-  describedBy?: string;
 }
 
-function boundsOf(value: LocationValue): LatLngBoundsLiteral {
-  const cell = snapToCell(value.latitude, value.longitude);
+function boundsOf(value: LocationValue, precision: AreaPrecision): LatLngBoundsLiteral {
+  const cell = snapToCell(value.latitude, value.longitude, precision);
   return [
     [cell.south, cell.west],
     [cell.north, cell.east],
@@ -65,20 +66,20 @@ function prefersReducedMotion(): boolean {
  * Keyboard: Leaflet makes the map container focusable (tabindex 0); with the focus on it the
  * arrow keys pan and "+" / "-" zoom. Leaflet handles no Tab key, so the map is not a keyboard
  * trap: Tab and Shift+Tab move on to the zoom buttons and the following controls. Setting the
- * point is not possible with a key press on the map; the list of places and the direction
- * buttons next to the map do that. The marker is therefore left out of the tab order.
+ * point is not possible with a key press on the map; the list of places above the map does
+ * that. The marker is therefore left out of the tab order.
  */
-const LocationMap = ({ value, onPick, recenterKey, describedBy }: LocationMapProps) => {
+const LocationMap = ({ value, precision, onPick, recenterKey }: LocationMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<Marker | null>(null);
   const areaRef = useRef<Rectangle | null>(null);
   // Always the latest props, so the map handlers need not be re-registered on every render
-  const latest = useRef({ value, onPick });
+  const latest = useRef({ value, onPick, precision });
   const shownKey = useRef(recenterKey);
 
   useEffect(() => {
-    latest.current = { value, onPick };
+    latest.current = { value, onPick, precision };
   });
 
   useEffect(() => {
@@ -89,7 +90,7 @@ const LocationMap = ({ value, onPick, recenterKey, describedBy }: LocationMapPro
     const initial = latest.current.value;
     const map = createMap(container, {
       center: initial ? [initial.latitude, initial.longitude] : START_CENTRE,
-      zoom: initial ? AREA_ZOOM : START_ZOOM,
+      zoom: initial ? AREA_ZOOM[latest.current.precision] : START_ZOOM,
       keyboard: true,
       // Both controls are added below with Ukrainian texts: Leaflet's own are English, which a
       // screen reader would read out with the wrong pronunciation (WCAG 3.1.2)
@@ -138,10 +139,10 @@ const LocationMap = ({ value, onPick, recenterKey, describedBy }: LocationMapPro
 
     const centre: [number, number] = [value.latitude, value.longitude];
     if (areaRef.current) {
-      areaRef.current.setBounds(boundsOf(value));
+      areaRef.current.setBounds(boundsOf(value, precision));
     } else {
       // The class sets stroke and fill from the colour tokens; it cannot be an SVG attribute
-      areaRef.current = createRectangle(boundsOf(value), {
+      areaRef.current = createRectangle(boundsOf(value, precision), {
         className: styles.area,
         interactive: false,
       }).addTo(map);
@@ -166,7 +167,9 @@ const LocationMap = ({ value, onPick, recenterKey, describedBy }: LocationMapPro
       // While dragging, the rectangle shows the cell under the pointer
       pin.on("drag", () => {
         const point = pin.getLatLng().wrap();
-        areaRef.current?.setBounds(boundsOf({ latitude: point.lat, longitude: point.lng }));
+        areaRef.current?.setBounds(
+          boundsOf({ latitude: point.lat, longitude: point.lng }, latest.current.precision),
+        );
       });
       pin.on("dragend", () => {
         const point = pin.getLatLng().wrap();
@@ -174,7 +177,7 @@ const LocationMap = ({ value, onPick, recenterKey, describedBy }: LocationMapPro
       });
       markerRef.current = pin;
     }
-  }, [value]);
+  }, [value, precision]);
 
   // Move to the chosen area when the caller asks; the first render is handled at creation
   useEffect(() => {
@@ -183,7 +186,8 @@ const LocationMap = ({ value, onPick, recenterKey, describedBy }: LocationMapPro
     const map = mapRef.current;
     const current = latest.current.value;
     if (!map || !current) return;
-    map.setView([current.latitude, current.longitude], Math.max(map.getZoom(), AREA_ZOOM), {
+    const zoom = AREA_ZOOM[latest.current.precision];
+    map.setView([current.latitude, current.longitude], Math.max(map.getZoom(), zoom), {
       animate: !prefersReducedMotion(),
     });
   }, [recenterKey]);
@@ -194,7 +198,6 @@ const LocationMap = ({ value, onPick, recenterKey, describedBy }: LocationMapPro
       ref={containerRef}
       role="group"
       aria-label={text.mapLabel}
-      aria-describedby={describedBy}
     />
   );
 };

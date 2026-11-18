@@ -1,6 +1,7 @@
 import { getIn, useFormikContext } from "formik";
 import * as Yup from "yup";
 import type {
+  AreaPrecision,
   CapabilityItem,
   CategoryCode,
   DistrictCode,
@@ -12,7 +13,7 @@ import type {
   SportItem,
   Taxonomy,
 } from "../../api/types";
-import { snapToCell } from "../../geo/gridCell";
+import { DEFAULT_PRECISION, isCoarser, snapToCell } from "../../geo/gridCell";
 import { uk } from "../../i18n/uk";
 
 // Limits follow the backend contract (display name 60, contact 120, at most 10 sports)
@@ -49,6 +50,8 @@ export interface ProfileFormValues {
   is_visible: boolean;
   /** Null until an area is chosen; on an existing profile null keeps the stored area. */
   location: LocationValue | null;
+  /** How coarse the stored area is; the owner's choice. */
+  area_precision: AreaPrecision;
   sports: SportRow[];
   functional_data_consent: boolean;
   capabilities: CapabilityRow[];
@@ -74,6 +77,7 @@ export function buildInitialValues(profile?: ProfileOwner): ProfileFormValues {
     intensity: profile ? String(profile.intensity) : "",
     is_visible: profile?.is_visible ?? true,
     location: null,
+    area_precision: profile?.area_precision ?? DEFAULT_PRECISION,
     sports: profile?.sports.length
       ? profile.sports.map(({ sport, skill }) => ({ sport, skill }))
       : [{ ...emptySportRow }],
@@ -94,8 +98,11 @@ export function equipmentFor(taxonomy: Taxonomy, category: CategoryCode | ""): E
 }
 
 /** The cell centre of an area, in the shape of the request body. */
-function centreOf({ latitude, longitude }: LocationValue): Pick<ProfilePut, "latitude" | "longitude"> {
-  const cell = snapToCell(latitude, longitude);
+function centreOf(
+  { latitude, longitude }: LocationValue,
+  precision: AreaPrecision,
+): Pick<ProfilePut, "latitude" | "longitude"> {
+  const cell = snapToCell(latitude, longitude, precision);
   return { latitude: cell.latitude, longitude: cell.longitude };
 }
 
@@ -123,7 +130,7 @@ export function toProfilePut(values: ProfileFormValues): ProfilePut {
     : [];
 
   const location: Pick<ProfilePut, "latitude" | "longitude"> = values.location
-    ? centreOf(values.location)
+    ? centreOf(values.location, values.area_precision)
     : {};
 
   return {
@@ -132,6 +139,7 @@ export function toProfilePut(values: ProfileFormValues): ProfilePut {
     intensity: Number(values.intensity),
     is_visible: values.is_visible,
     ...location,
+    area_precision: values.area_precision,
     sports,
     capabilities,
     functional_data_consent: consent,
@@ -170,8 +178,14 @@ function repeatsEarlierRow(listName: "sports" | "capabilities", key: string) {
  * @param taxonomy The vocabulary served by the API.
  * @param locationOptional True when a profile already exists: no area needs to be chosen then
  *   (the stored area is kept).
+ * @param storedPrecision Size of the stored area of an existing profile. A smaller size cannot
+ *   be derived from it, so choosing one asks for the place again.
  */
-export function buildProfileSchema(taxonomy: Taxonomy, locationOptional = false) {
+export function buildProfileSchema(
+  taxonomy: Taxonomy,
+  locationOptional = false,
+  storedPrecision?: AreaPrecision,
+) {
   const choose = (allowed: readonly string[]) =>
     Yup.string().required(uk.form.validation.required).oneOf(allowed, messages.choose);
 
@@ -210,7 +224,12 @@ export function buildProfileSchema(taxonomy: Taxonomy, locationOptional = false)
     intensity: choose(taxonomy.intensities.map(String)),
     location: Yup.mixed<LocationValue>()
       .nullable()
-      .test("chosen", messages.locationRequired, (value) => locationOptional || value != null),
+      .test("chosen", messages.locationRequired, (value) => locationOptional || value != null)
+      .test("finer", uk.profile.location.finerNeedsPlace, function (value) {
+        if (value != null || storedPrecision === undefined) return true;
+        const chosen = (this.parent as ProfileFormValues).area_precision;
+        return !isCoarser(storedPrecision, chosen);
+      }),
     sports: Yup.array().of(sportRow).min(1, uk.profile.sports.lastRow).max(MAX_SPORTS),
     functional_data_consent: Yup.boolean(),
     capabilities: Yup.array().when("functional_data_consent", {

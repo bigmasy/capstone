@@ -67,7 +67,7 @@ describe("HomePage (landing)", () => {
       for (const item of uk.landing.privacy.items) {
         expect(within(section).getByRole("heading", { name: item.title })).toBeInTheDocument();
       }
-      expect(section).toHaveTextContent("4 × 4 км");
+      expect(section).toHaveTextContent("розмір якої ви обираєте самі");
     });
 
     it("has the sections why, audience and the final call to action", () => {

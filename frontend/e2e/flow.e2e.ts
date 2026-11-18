@@ -98,10 +98,10 @@ test("onboarding: place from the gazetteer, map, rounded-area text, sports, cons
   await owner.getByLabel(text.sports.sport).nth(1).selectOption("cycling");
 
   await owner.getByLabel(text.location.place).selectOption("kyiv");
-  // The area is described in words, as a rounded cell, never as a point
-  const area = owner.locator("#main-content").getByText(text.location.area("", "", "", "").slice(0, 16));
-  await expect(area).toContainText("4 км × 4 км");
-  await expect(area).not.toContainText("50.450");
+  // The choice is confirmed in words, with the size of the area and never with a point
+  await expect(owner.getByRole("radio", { name: new RegExp(`^${text.location.precision["4km"].name}`) })).toBeChecked();
+  await expect(owner.locator("#main-content").getByText(text.location.chosen["4km"])).toBeVisible();
+  await expect(owner.locator("#main-content")).not.toContainText("50.450");
   // Choosing a place shows the map
   await expect(owner.locator(".leaflet-container")).toBeVisible();
   await expect(owner.getByRole("button", { name: text.location.hideMap })).toHaveAttribute(

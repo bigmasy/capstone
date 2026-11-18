@@ -1,4 +1,5 @@
 import { uk } from "../../i18n/uk";
+import Avatar from "../Avatar/Avatar";
 import styles from "./HeroPreview.module.css";
 
 const text = uk.landing.hero.preview;
@@ -12,8 +13,13 @@ const HeroPreview = () => (
   <div className={styles.wrap} aria-hidden="true">
     <div className={styles.card}>
       <p className={styles.label}>{text.label}</p>
-      <p className={styles.name}>{text.name}</p>
-      <p className={styles.place}>{text.place}</p>
+      <div className={styles.who}>
+        <Avatar profileId="hero-preview" name={text.name} hasPhoto={false} />
+        <div>
+          <p className={styles.name}>{text.name}</p>
+          <p className={styles.place}>{text.place}</p>
+        </div>
+      </div>
       <ul className={styles.sports}>
         {text.sports.map((sport) => (
           <li key={sport}>{sport}</li>

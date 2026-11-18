@@ -1,6 +1,7 @@
-import { lazy, Suspense, useId, useState, type KeyboardEvent } from "react";
-import { nearestCity, placesInOrder, findPlace } from "../../content/gazetteer";
-import { neighbourCell, snapToCell, type Direction, type GridCell } from "../../geo/gridCell";
+import { lazy, Suspense, useId, useState } from "react";
+import type { AreaPrecision } from "../../api/types";
+import { placesInOrder, findPlace } from "../../content/gazetteer";
+import { isCoarser, snapToCell } from "../../geo/gridCell";
 import { uk } from "../../i18n/uk";
 import Loader from "../Loader/Loader";
 import type { LocationValue } from "../ProfileForm/profileValues";
@@ -13,56 +14,58 @@ const LocationMap = lazy(() => import("./LocationMap"));
 
 const text = uk.profile.location;
 const PLACE_OPTIONS = placesInOrder().map((place) => ({ value: place.id, label: place.name }));
+/** The choices in the order they are offered: from the coarsest area to the finest. */
+const PRECISION_CHOICES: readonly AreaPrecision[] = ["place", "4km", "2km", "1km"];
 
 type GeolocationState = "idle" | "pending" | "located" | "denied" | "unavailable";
-
-const ARROW_DIRECTIONS: Record<string, Direction> = {
-  ArrowUp: "north",
-  ArrowDown: "south",
-  ArrowRight: "east",
-  ArrowLeft: "west",
-};
 
 interface LocationPickerProps {
   /** The chosen area as the centre of its grid cell, or null. */
   value: LocationValue | null;
   /** Receives the centre of the chosen cell, or null; an exact point never leaves this component. */
   onChange: (value: LocationValue | null) => void;
+  /** How coarse the stored area is; the owner's choice. */
+  precision: AreaPrecision;
+  /** Receives the new choice of area size. */
+  onPrecisionChange: (precision: AreaPrecision) => void;
   /** Error text for the list of places, which is the first control of the picker. */
   error?: string;
   /** True for an existing profile: leaving the area unchosen keeps the stored one. */
   optional?: boolean;
 }
 
-function centreOf(cell: GridCell): LocationValue {
+function centreOf(latitude: number, longitude: number, precision: AreaPrecision): LocationValue {
+  const cell = snapToCell(latitude, longitude, precision);
   return { latitude: cell.latitude, longitude: cell.longitude };
-}
-
-/** A latitude or longitude edge such as "50.44° пн. ш."; edges are multiples of 0.01. */
-function edge(value: number, positive: string, negative: string): string {
-  return `${Math.abs(value).toFixed(2)}° ${value < 0 ? negative : positive}`;
 }
 
 /**
  * Chooses the training area without typing coordinates.
  *
- * Three ways in, all ending in the same step: the point is snapped to its grid cell at once,
- * so only the cell is kept in the form and sent, and the rectangle of that cell is what the map
- * shows. The ways are the list of places (a static gazetteer, no search through a third party),
- * the browser's position, and the map; direction buttons move the cell by one step, which is the
- * way to adjust it without a pointer. The map is loaded only after the user asks for it or picks
- * a place.
+ * First the size of the area: only a city or a district, or a square of about 4, 2 or 1 km.
+ * With "city or district" the list of places is the whole control. With a square the area can
+ * also come from the browser's position or from the map. Whatever the way in, the point is
+ * snapped to its grid cell at once, so only the cell is kept in the form and sent, and the
+ * rectangle of that cell is what the map shows. The map is loaded only after the user asks for
+ * it or picks a place.
  */
-const LocationPicker = ({ value, onChange, error, optional = false }: LocationPickerProps) => {
+const LocationPicker = ({
+  value,
+  onChange,
+  precision,
+  onPrecisionChange,
+  error,
+  optional = false,
+}: LocationPickerProps) => {
   const mapRegionId = useId();
-  const descriptionId = useId();
+  const precisionName = useId();
   const [mapShown, setMapShown] = useState(false);
   const [recenterKey, setRecenterKey] = useState(0);
-  const [picked, setPicked] = useState<{ id: string } & LocationValue | null>(null);
+  const [picked, setPicked] = useState<({ id: string } & LocationValue) | null>(null);
   const [geolocation, setGeolocation] = useState<GeolocationState>("idle");
   const canLocate = "geolocation" in navigator;
+  const placeOnly = precision === "place";
 
-  const cell = value ? snapToCell(value.latitude, value.longitude) : null;
   // The list shows a place only while the chosen cell is the one that place produced
   const selectedId =
     picked && value && picked.latitude === value.latitude && picked.longitude === value.longitude
@@ -71,7 +74,7 @@ const LocationPicker = ({ value, onChange, error, optional = false }: LocationPi
 
   /** Takes a point from the map or the browser; the exact value is dropped right here. */
   const chooseFromPoint = (latitude: number, longitude: number, recenter: boolean) => {
-    onChange(centreOf(snapToCell(latitude, longitude)));
+    onChange(centreOf(latitude, longitude, precision));
     setPicked(null);
     if (recenter) setRecenterKey((key) => key + 1);
   };
@@ -82,26 +85,33 @@ const LocationPicker = ({ value, onChange, error, optional = false }: LocationPi
       onChange(null);
       return;
     }
-    const centre = centreOf(snapToCell(place.latitude, place.longitude));
+    const centre = centreOf(place.latitude, place.longitude, precision);
     onChange(centre);
     setPicked({ id, ...centre });
-    // Picking a place is a request to see it
-    setMapShown(true);
-    setRecenterKey((key) => key + 1);
+    if (!placeOnly) {
+      // Picking a place is a request to see it
+      setMapShown(true);
+      setRecenterKey((key) => key + 1);
+    }
   };
 
-  const nudge = (direction: Direction) => {
-    if (!cell) return;
-    onChange(centreOf(neighbourCell(cell, direction)));
-    setPicked(null);
+  const choosePrecision = (next: AreaPrecision) => {
+    if (next === precision) return;
+    onPrecisionChange(next);
+    const place = picked ? findPlace(picked.id) : undefined;
+    if (place) {
+      // A place from the list is a known point: it is simply snapped again
+      const centre = centreOf(place.latitude, place.longitude, next);
+      onChange(centre);
+      setPicked({ id: place.id, ...centre });
+    } else if (value && isCoarser(next, precision)) {
+      // The grids are nested, so the chosen cell lies inside exactly one larger cell
+      onChange(centreOf(value.latitude, value.longitude, next));
+    } else if (value) {
+      // A smaller cell cannot be derived from a larger one: the place has to be chosen again
+      onChange(null);
+    }
     setRecenterKey((key) => key + 1);
-  };
-
-  const onNudgeKey = (event: KeyboardEvent<HTMLButtonElement>) => {
-    const direction = ARROW_DIRECTIONS[event.key];
-    if (direction === undefined) return;
-    event.preventDefault();
-    nudge(direction);
   };
 
   const locate = () => {
@@ -130,29 +140,39 @@ const LocationPicker = ({ value, onChange, error, optional = false }: LocationPi
             ? text.unavailable
             : "";
 
-  const nearest = cell ? nearestCity(cell) : null;
-  const description = cell
-    ? `${text.area(
-        edge(cell.south, text.northLatitude, text.southLatitude),
-        edge(cell.north, text.northLatitude, text.southLatitude),
-        edge(cell.west, text.eastLongitude, text.westLongitude),
-        edge(cell.east, text.eastLongitude, text.westLongitude),
-      )} ${nearest ? text.nearest(nearest.place.name, Math.round(nearest.distanceKm)) : ""}`.trim()
-    : text.areaNone;
-
-  const directions: { direction: Direction; label: string; className: string }[] = [
-    { direction: "north", label: text.north, className: styles.north ?? "" },
-    { direction: "west", label: text.west, className: styles.west ?? "" },
-    { direction: "east", label: text.east, className: styles.east ?? "" },
-    { direction: "south", label: text.south, className: styles.south ?? "" },
-  ];
-
   return (
     <div className={styles.picker}>
+      <fieldset className={styles.sizes}>
+        <legend>{text.precisionLegend}</legend>
+        <p className={styles.note}>{text.precisionHint}</p>
+        <div className={styles.sizeList}>
+          {PRECISION_CHOICES.map((choice) => (
+            <label key={choice} className={styles.size} htmlFor={`${precisionName}-${choice}`}>
+              <input
+                id={`${precisionName}-${choice}`}
+                type="radio"
+                name={precisionName}
+                value={choice}
+                checked={precision === choice}
+                onChange={() => choosePrecision(choice)}
+              />
+              <span className={styles.sizeName}>{text.precision[choice].name}</span>
+              <span className={styles.sizeNote}>{text.precision[choice].note}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
       <SelectField
         name="place"
         label={text.place}
-        hint={optional ? `${text.placeHint} ${text.optionalHint}` : text.placeHint}
+        hint={
+          optional
+            ? `${placeOnly ? text.placeOnlyHint : text.placeHint} ${text.optionalHint}`
+            : placeOnly
+              ? text.placeOnlyHint
+              : text.placeHint
+        }
         options={PLACE_OPTIONS}
         placeholder={text.placePlaceholder}
         value={selectedId}
@@ -161,7 +181,7 @@ const LocationPicker = ({ value, onChange, error, optional = false }: LocationPi
         error={error}
       />
 
-      {canLocate && (
+      {!placeOnly && canLocate && (
         <div className={styles.row}>
           <button
             className="button button-secondary"
@@ -179,76 +199,56 @@ const LocationPicker = ({ value, onChange, error, optional = false }: LocationPi
         </div>
       )}
 
-      <div className={styles.mapFrame}>
-        <div className={styles.row}>
-          <button
-            className="button button-secondary"
-            type="button"
-            aria-expanded={mapShown}
-            aria-controls={mapRegionId}
-            onClick={() => setMapShown((shown) => !shown)}
-          >
-            {mapShown ? text.hideMap : text.showMap}
-          </button>
-          <p className={styles.note}>{text.mapOptional}</p>
-        </div>
-        <p className={styles.note}>{text.mapNote}</p>
-        <div id={mapRegionId}>
-          {mapShown && (
-            <>
-              <p className={styles.note}>{text.mapPointerHint}</p>
-              <MapBoundary>
-                <Suspense fallback={<Loader label={text.mapLoading} />}>
-                  <LocationMap
-                    value={value}
-                    onPick={(latitude, longitude) => chooseFromPoint(latitude, longitude, false)}
-                    recenterKey={recenterKey}
-                    describedBy={descriptionId}
-                  />
-                </Suspense>
-              </MapBoundary>
-              <p className={styles.note}>{text.mapKeyboardHint}</p>
-              <p className={styles.note}>
-                <a
-                  href="https://www.openstreetmap.org/copyright"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  referrerPolicy="no-referrer"
-                  // The wording of the credit is the English one the map provider asks for
-                  lang="en"
-                >
-                  {text.attribution}
-                </a>
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {cell && (
-        <fieldset className={styles.compass}>
-          <legend>{text.nudgeLegend}</legend>
-          {directions.map(({ direction, label, className }) => (
+      {!placeOnly && (
+        <div className={styles.mapFrame}>
+          <div className={styles.row}>
             <button
-              key={direction}
-              className={`button button-secondary ${className}`}
+              className="button button-secondary"
               type="button"
-              onClick={() => nudge(direction)}
-              onKeyDown={onNudgeKey}
+              aria-expanded={mapShown}
+              aria-controls={mapRegionId}
+              onClick={() => setMapShown((shown) => !shown)}
             >
-              {label}
+              {mapShown ? text.hideMap : text.showMap}
             </button>
-          ))}
-        </fieldset>
+            <p className={styles.note}>{text.mapNote}</p>
+          </div>
+          <div id={mapRegionId}>
+            {mapShown && (
+              <>
+                <p className={styles.note}>{text.mapPointerHint}</p>
+                <MapBoundary>
+                  <Suspense fallback={<Loader label={text.mapLoading} />}>
+                    <LocationMap
+                      value={value}
+                      precision={precision}
+                      onPick={(latitude, longitude) => chooseFromPoint(latitude, longitude, false)}
+                      recenterKey={recenterKey}
+                    />
+                  </Suspense>
+                </MapBoundary>
+                <p className={styles.note}>
+                  <a
+                    href="https://www.openstreetmap.org/copyright"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    referrerPolicy="no-referrer"
+                    // The wording of the credit is the English one the map provider asks for
+                    lang="en"
+                  >
+                    {text.attribution}
+                  </a>
+                </p>
+              </>
+            )}
+          </div>
+        </div>
       )}
-      {cell && <p className={styles.note}>{text.nudgeHint}</p>}
 
-      <div className={styles.preview}>
-        <p id={descriptionId} role="status">
-          {description}
-        </p>
-        <p className={styles.previewNote}>{text.previewNote}</p>
-      </div>
+      {/* Always in the DOM so that the choice is announced when it changes */}
+      <p role="status" className={styles.chosen}>
+        {value ? text.chosen[precision] : ""}
+      </p>
 
       {value && (
         <div className={styles.row}>

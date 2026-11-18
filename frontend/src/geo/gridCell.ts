@@ -7,16 +7,37 @@
  * cells, same rounding of the centre to six decimals), so the rectangle drawn on the map is the
  * area that is really stored. The golden values in the tests were produced by the server code.
  */
+import type { AreaPrecision } from "../api/types";
 
-/** Height of a cell in degrees of latitude: about 4.4 km. */
+/** Height of a cell of the default grid in degrees of latitude: about 4.4 km. */
 export const LAT_STEP = 0.04;
-/** Width of a cell in degrees of longitude: about 4.3 km at 50 degrees north. */
+/** Width of a cell of the default grid in degrees of longitude: about 4.3 km at 50 degrees north. */
 export const LON_STEP = 0.06;
+
+/** The grid of a profile that has not chosen one; the server uses the same default. */
+export const DEFAULT_PRECISION: AreaPrecision = "4km";
+
+/**
+ * Steps of every grid in degrees: [latitude, longitude]. Each grid is twice as coarse as the
+ * one before, so the grids are nested and an area can be made coarser without the original point.
+ */
+export const GRID_STEPS: Record<AreaPrecision, readonly [number, number]> = {
+  "1km": [0.01, 0.015],
+  "2km": [0.02, 0.03],
+  "4km": [LAT_STEP, LON_STEP],
+  place: [0.08, 0.12],
+};
+
+/** The grids from the finest to the coarsest. */
+export const PRECISION_ORDER: readonly AreaPrecision[] = ["1km", "2km", "4km", "place"];
+
+/** True when the cells of `a` are larger than the cells of `b`. */
+export function isCoarser(a: AreaPrecision, b: AreaPrecision): boolean {
+  return PRECISION_ORDER.indexOf(a) > PRECISION_ORDER.indexOf(b);
+}
 
 const MAX_LATITUDE = 90;
 const MAX_LONGITUDE = 180;
-
-export type Direction = "north" | "south" | "east" | "west";
 
 /** A grid cell: its centre (what is stored and sent) and its edges (what is drawn). */
 export interface GridCell {
@@ -45,14 +66,14 @@ function cellIndex(value: number, step: number, limit: number): number {
   return Math.max(-cells, Math.min(cells - 1, Math.floor(value / step)));
 }
 
-function cellAt(latIndex: number, lonIndex: number): GridCell {
+function cellAt(latIndex: number, lonIndex: number, latStep: number, lonStep: number): GridCell {
   return {
-    latitude: round6((latIndex + 0.5) * LAT_STEP),
-    longitude: round6((lonIndex + 0.5) * LON_STEP),
-    south: round6(latIndex * LAT_STEP),
-    north: round6((latIndex + 1) * LAT_STEP),
-    west: round6(lonIndex * LON_STEP),
-    east: round6((lonIndex + 1) * LON_STEP),
+    latitude: round6((latIndex + 0.5) * latStep),
+    longitude: round6((lonIndex + 0.5) * lonStep),
+    south: round6(latIndex * latStep),
+    north: round6((latIndex + 1) * latStep),
+    west: round6(lonIndex * lonStep),
+    east: round6((lonIndex + 1) * lonStep),
   };
 }
 
@@ -63,34 +84,24 @@ function cellAt(latIndex: number, lonIndex: number): GridCell {
  *
  * @param latitude Latitude in degrees.
  * @param longitude Longitude in degrees.
+ * @param precision Grid to use; the default grid has cells of about 4 km.
  * @throws RangeError If a value is not a finite number (the message never contains the value).
  */
-export function snapToCell(latitude: number, longitude: number): GridCell {
+export function snapToCell(
+  latitude: number,
+  longitude: number,
+  precision: AreaPrecision = DEFAULT_PRECISION,
+): GridCell {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     throw new RangeError("coordinates must be finite numbers");
   }
+  const [latStep, lonStep] = GRID_STEPS[precision];
   return cellAt(
-    cellIndex(latitude, LAT_STEP, MAX_LATITUDE),
-    cellIndex(longitude, LON_STEP, MAX_LONGITUDE),
+    cellIndex(latitude, latStep, MAX_LATITUDE),
+    cellIndex(longitude, lonStep, MAX_LONGITUDE),
+    latStep,
+    lonStep,
   );
-}
-
-/** The neighbouring cell in a direction; at the edge of the globe the cell stays where it is. */
-export function neighbourCell(cell: GridCell, direction: Direction): GridCell {
-  const latIndex = cellIndex(cell.latitude, LAT_STEP, MAX_LATITUDE);
-  const lonIndex = cellIndex(cell.longitude, LON_STEP, MAX_LONGITUDE);
-  const latCells = Math.round(MAX_LATITUDE / LAT_STEP);
-  const lonCells = Math.round(MAX_LONGITUDE / LON_STEP);
-  switch (direction) {
-    case "north":
-      return cellAt(Math.min(latCells - 1, latIndex + 1), lonIndex);
-    case "south":
-      return cellAt(Math.max(-latCells, latIndex - 1), lonIndex);
-    case "east":
-      return cellAt(latIndex, Math.min(lonCells - 1, lonIndex + 1));
-    case "west":
-      return cellAt(latIndex, Math.max(-lonCells, lonIndex - 1));
-  }
 }
 
 /** Great-circle distance in kilometres between two points, from the haversine formula. */

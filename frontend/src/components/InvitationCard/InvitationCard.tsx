@@ -2,6 +2,7 @@ import { useId } from "react";
 import type { InvitationOut } from "../../api/types";
 import { formatDateTime } from "../../i18n/format";
 import { uk } from "../../i18n/uk";
+import Avatar from "../Avatar/Avatar";
 import PartnerFacts from "../PartnerFacts/PartnerFacts";
 import InvitationActions, { type ActionFeedback } from "./InvitationActions";
 import styles from "./InvitationCard.module.css";
@@ -53,12 +54,19 @@ const InvitationCard = ({ invitation, version, onFeedback }: InvitationCardProps
   return (
     <li>
       <article className={styles.card} aria-labelledby={headingId}>
-        <p className={styles.role}>
-          {invitation.direction === "incoming" ? text.card.from : text.card.to}
-        </p>
-        <h3 className={styles.name} id={headingId}>
-          {name}
-        </h3>
+        <div className={styles.head}>
+          {partner && (
+            <Avatar profileId={partner.id} name={partner.display_name} hasPhoto={partner.has_photo} />
+          )}
+          <div className={styles.who}>
+            <p className={styles.role}>
+              {invitation.direction === "incoming" ? text.card.from : text.card.to}
+            </p>
+            <h3 className={styles.name} id={headingId}>
+              {name}
+            </h3>
+          </div>
+        </div>
         <p className={styles.status}>
           <span className={styles.badge}>{text.status[invitation.status]}</span>
         </p>

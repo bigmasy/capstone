@@ -17,7 +17,7 @@ const Picker = () => {
   const [value, setValue] = useState<LocationValue | null>(null);
   return (
     <>
-      <LocationPicker value={value} onChange={setValue} />
+      <LocationPicker value={value} onChange={setValue} precision="4km" onPrecisionChange={() => undefined} />
       <span data-testid="value">{value ? `${value.latitude};${value.longitude}` : "none"}</span>
     </>
   );
@@ -33,7 +33,7 @@ describe("LocationPicker when the map cannot be loaded", () => {
     vi.restoreAllMocks();
   });
 
-  it("tells the user in an alert and leaves the list and the direction buttons working", async () => {
+  it("tells the user in an alert and leaves the list working", async () => {
     const user = userEvent.setup();
     render(<Picker />);
 
@@ -41,7 +41,6 @@ describe("LocationPicker when the map cannot be loaded", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(text.mapFailed);
     await user.selectOptions(screen.getByRole("combobox", { name: /^Місто або район/ }), "kyiv");
-    await user.click(screen.getByRole("button", { name: text.north }));
-    expect(screen.getByTestId("value")).toHaveTextContent("50.5;30.51");
+    expect(screen.getByTestId("value")).toHaveTextContent("50.46;30.51");
   });
 });
